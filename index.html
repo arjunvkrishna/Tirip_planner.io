@@ -38,6 +38,9 @@
             margin-top: 0;
             text-align: center;
         }
+        h3 {
+            margin-bottom: 10px;
+        }
        .input-group {
             margin-bottom: 15px;
         }
@@ -47,7 +50,7 @@
             font-weight: 600;
             font-size: 14px;
         }
-        input[type="text"], input[type="time"], input[type="number"], input[type="date"], input[type="checkbox"] {
+        input[type="text"], input[type="time"], input[type="number"], input[type="checkbox"] {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
@@ -132,12 +135,15 @@
             color: #0056b3;
             font-size: 16px !important;
         }
+        .weather-info {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <h1>Trip Planner</h1>
+        <h1>Trip Planner 🚗</h1>
         
         <div class="input-group">
             <label for="origin">Origin</label>
@@ -162,10 +168,6 @@
                 <label for="end-time">Arrival Time</label>
                 <input type="time" id="end-time">
             </div>
-        </div>
-        <div class="input-group">
-             <label for="start-date">Date of Travel</label>
-             <input type="date" id="start-date">
         </div>
 
         <div class="input-group">
@@ -209,6 +211,8 @@
 
         <div id="results">
             <h2>Trip Details</h2>
+            <p id="origin-weather" class="weather-info"></p>
+            <p id="destination-weather" class="weather-info"></p>
             <p id="total-distance"></p>
             <p id="total-duration"></p>
             <p id="time-calculation-result"></p>
@@ -222,15 +226,18 @@
     <div id="map"></div>
 
     <script>
-        // --- API KEY ---
-        // You must provide your own API key below for the application to work.
-        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; // <-- PASTE YOUR GEMINI API KEY HERE
+        // --- API KEY & MODEL ---
+        // Updated with the provided key and model name.
+        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; 
+        const GEMINI_MODEL = "gemini-2.0-flash";
 
+        // Initialize Leaflet map
         const map = L.map('map').setView([9.9312, 76.2673], 9); // Default center (Kochi)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map); 
 
+        // Get DOM elements
         const originInput = document.getElementById('origin');
         const destinationInput = document.getElementById('destination');
         const stopsContainer = document.getElementById('stops-container');
@@ -244,8 +251,7 @@
         
         let stopCount = 0;
 
-        document.getElementById('start-date').valueAsDate = new Date();
-
+        // Event listeners
         startTimeInput.addEventListener('input', () => {
             if (startTimeInput.value) {
                 endTimeInput.value = '';
@@ -277,6 +283,9 @@
 
         calculateBtn.addEventListener('click', calculateTrip);
 
+        /**
+         * Main function to calculate the trip details by calling the Gemini API.
+         */
         async function calculateTrip() {
             clearResults();
 
@@ -290,28 +299,32 @@
             const origin = originInput.value;
             const destination = destinationInput.value;
             const stops = Array.from(document.querySelectorAll('.stop-input'))
-                               .map(input => input.value)
-                               .filter(val => val);
+                                 .map(input => input.value)
+                                 .filter(val => val);
 
             if (!origin || !destination) {
                 showError("Please enter an origin and a destination.");
                 return;
             }
 
-            // Forcefully add ", Kerala, India" to all location inputs to ensure geographic accuracy.
+            // Append ", Kerala, India" to all location inputs for geographic accuracy.
             const originFull = `${origin}, Kerala, India`;
             const destinationFull = `${destination}, Kerala, India`;
             const stopsFull = stops.map(stop => `${stop}, Kerala, India`);
 
+            // --- PROMPT MODIFICATION ---
+            // Request weather for both origin and destination.
             let prompt = `Calculate the route for a car trip from "${originFull}" to "${destinationFull}"`;
             if (stopsFull.length > 0) {
                 const stopsString = stopsFull.join('" via "');
                 prompt = `Calculate the route for a car trip from "${originFull}" via "${stopsString}" to "${destinationFull}"`;
             }
-            prompt += `. The trip must be entirely within India. Provide the total distance in kilometers and total duration in minutes.`;
+            prompt += `. The trip must be entirely within India. Provide the total distance in kilometers, total duration in minutes, the current weather at the origin, and the current weather at the destination. For weather, include a short description and temperature in Celsius.`;
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
             
+            // --- SCHEMA MODIFICATION ---
+            // Added 'origin_weather' and updated 'destination_weather' to the schema.
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
@@ -320,9 +333,23 @@
                         type: "OBJECT",
                         properties: {
                             "distance_km": { "type": "NUMBER" },
-                            "duration_minutes": { "type": "NUMBER" }
+                            "duration_minutes": { "type": "NUMBER" },
+                            "origin_weather": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "description": { "type": "STRING" },
+                                    "temperature_celsius": { "type": "NUMBER" }
+                                }
+                            },
+                            "destination_weather": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "description": { "type": "STRING" },
+                                    "temperature_celsius": { "type": "NUMBER" }
+                                }
+                            }
                         },
-                        required: ["distance_km", "duration_minutes"]
+                        required: ["distance_km", "duration_minutes", "origin_weather", "destination_weather"]
                     }
                 }
             };
@@ -349,12 +376,20 @@
                 const result = JSON.parse(text);
                 const distanceInKm = result.distance_km;
                 const durationInSeconds = result.duration_minutes * 60;
+                const originWeather = result.origin_weather;
+                const destinationWeather = result.destination_weather;
 
+                // Validate the received data
                 if (distanceInKm === null || typeof distanceInKm === 'undefined' || durationInSeconds === null || typeof durationInSeconds === 'undefined') {
                     throw new Error("Could not get distance or duration from the API's JSON response.");
                 }
 
-                displayResults(distanceInKm, durationInSeconds);
+                if (!originWeather || !destinationWeather) {
+                    throw new Error("Could not get weather information from the API response.");
+                }
+
+                // Pass all data to the display function
+                displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather);
 
             } catch (error) {
                 console.error('Gemini API error:', error);
@@ -364,28 +399,44 @@
             }
         }
 
-        function displayResults(distanceInKm, durationInSeconds) {
+        /**
+         * Displays the calculated results in the sidebar.
+         * @param {number} distanceInKm - Total distance of the trip.
+         * @param {number} durationInSeconds - Total duration of the trip.
+         * @param {object} originWeather - Weather data for the origin.
+         * @param {object} destinationWeather - Weather data for the destination.
+         */
+        function displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather) {
             const roundTripCheckbox = document.getElementById('round-trip');
             const isRoundTrip = roundTripCheckbox.checked;
 
-            // Display one-way results
+            // --- Display Weather ---
+            const originEmoji = getWeatherEmoji(originWeather.description);
+            document.getElementById('origin-weather').innerHTML = `Origin Weather: ${originEmoji} ${originWeather.description}, ${originWeather.temperature_celsius.toFixed(1)}°C`;
+            
+            const destEmoji = getWeatherEmoji(destinationWeather.description);
+            document.getElementById('destination-weather').innerHTML = `Destination Weather: ${destEmoji} ${destinationWeather.description}, ${destinationWeather.temperature_celsius.toFixed(1)}°C`;
+
+            // Display one-way trip details
             document.getElementById('total-distance').textContent = `One-Way Distance: ${distanceInKm.toFixed(2)} km`;
             document.getElementById('total-duration').textContent = `Estimated One-Way Duration: ${formatDuration(durationInSeconds)}`;
 
+            // Calculate and display arrival/start time
             const startTimeValue = startTimeInput.value;
             const endTimeValue = endTimeInput.value;
-            const startDateValue = document.getElementById('start-date').value;
+            const todayStr = new Date().toISOString().slice(0, 10); // Get YYYY-MM-DD for today
 
             if (startTimeValue) {
-                const startDateTime = new Date(`${startDateValue}T${startTimeValue}`);
+                const startDateTime = new Date(`${todayStr}T${startTimeValue}`);
                 const arrivalDateTime = new Date(startDateTime.getTime() + durationInSeconds * 1000);
                 document.getElementById('time-calculation-result').textContent = `Estimated Arrival: ${arrivalDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
             } else if (endTimeValue) {
-                const endDateTime = new Date(`${startDateValue}T${endTimeValue}`);
+                const endDateTime = new Date(`${todayStr}T${endTimeValue}`);
                 const requiredStartDateTime = new Date(endDateTime.getTime() - durationInSeconds * 1000);
                 document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
             }
 
+            // Calculate costs
             const mileage = parseFloat(document.getElementById('mileage').value);
             const fuelPrice = parseFloat(document.getElementById('fuel-price').value);
             const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
@@ -415,6 +466,27 @@
             document.getElementById('total-trip-cost').textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
         }
 
+        /**
+         * Selects a weather emoji based on the weather description.
+         * @param {string} description - The weather description text.
+         * @returns {string} An emoji character.
+         */
+        function getWeatherEmoji(description) {
+            const desc = description.toLowerCase();
+            if (desc.includes('cloud') || desc.includes('overcast')) return '☁️';
+            if (desc.includes('sun') || desc.includes('clear')) return '☀️';
+            if (desc.includes('rain') || desc.includes('shower') || desc.includes('drizzle')) return '🌧️';
+            if (desc.includes('storm') || desc.includes('thunder')) return '⛈️';
+            if (desc.includes('snow')) return '❄️';
+            if (desc.includes('mist') || desc.includes('haze') || desc.includes('fog')) return '🌫️';
+            return '🌍'; // default
+        }
+
+        /**
+         * Formats a duration in seconds into a human-readable string (e.g., "1 hour 30 minutes").
+         * @param {number} seconds - The duration in seconds.
+         * @returns {string} The formatted duration string.
+         */
         function formatDuration(seconds) {
             if (seconds === 0) return 'N/A';
             const hours = Math.floor(seconds / 3600);
@@ -426,11 +498,18 @@
             return result.trim();
         }
 
+        /**
+         * Clears all previous results and error messages from the UI.
+         */
         function clearResults() {
             resultsDiv.querySelectorAll('p').forEach(p => p.textContent = '');
             errorMessage.textContent = '';
         }
 
+        /**
+         * Displays an error message in the UI.
+         * @param {string} message - The error message to display.
+         */
         function showError(message) {
             loader.style.display = 'none';
             errorMessage.textContent = message;
