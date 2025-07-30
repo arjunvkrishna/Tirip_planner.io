@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 380px;
+            background: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        #map {
+            flex: 1;
+            background-color: #e9ecef;
+        }
+        h1 {
+            font-size: 24px;
+            margin-top: 0;
+            text-align: center;
+        }
+       .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="time"], input[type="number"], input[type="date"], input[type="checkbox"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        input[type="checkbox"] {
+            width: auto;
+        }
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        input:disabled {
+            background-color: #e9ecef;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #0056b3, #003d80);
+        }
+        #add-stop-btn {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+        #add-stop-btn:hover {
+            background: #5a6268;
+        }
+        #results {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        #results h2 {
+            margin-top: 0;
+            text-align: center;
+        }
+        #results p {
+            margin: 8px 0;
+            font-size: 15px;
+            background-color: #f0f2f5;
+            padding: 10px;
+            border-radius: 6px;
+        }
+       .time-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+       .time-option {
+            flex: 1;
+        }
+       .error {
+            color: #dc3545;
+            font-weight: bold;
+            margin-top: 15px;
+            text-align: center;
+            padding: 10px;
+            background-color: rgba(220, 53, 69, 0.1);
+            border-radius: 6px;
+        }
+       .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .total-cost {
+            font-weight: bold;
+            color: #0056b3;
+            font-size: 16px !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>Trip Planner</h1>
+        
+        <div class="input-group">
+            <label for="origin">Origin</label>
+            <input type="text" id="origin" placeholder="e.g., Ernakulam">
+        </div>
+
+        <div id="stops-container">
+        </div>
+        <button id="add-stop-btn" type="button">Add Stop</button>
+
+        <div class="input-group" style="margin-top: 15px;">
+            <label for="destination">Destination</label>
+            <input type="text" id="destination" placeholder="e.g., Munnar">
+        </div>
+
+        <div class="time-toggle">
+            <div class="time-option">
+                <label for="start-time">Start Time</label>
+                <input type="time" id="start-time">
+            </div>
+            <div class="time-option">
+                <label for="end-time">Arrival Time</label>
+                <input type="time" id="end-time">
+            </div>
+        </div>
+        <div class="input-group">
+             <label for="start-date">Date of Travel</label>
+             <input type="date" id="start-date">
+        </div>
+
+        <div class="input-group">
+            <label for="mileage">Vehicle Mileage (km/L)</label>
+            <input type="number" id="mileage" placeholder="e.g., 15">
+        </div>
+
+        <div class="input-group">
+            <label for="fuel-price">Fuel Price (per Liter)</label>
+            <input type="number" id="fuel-price" placeholder="e.g., 106">
+        </div>
+
+        <hr>
+        <h3>Additional Expenses</h3>
+        <div class="input-group">
+            <label for="hotel-cost">Hotel Cost</label>
+            <input type="number" id="hotel-cost" placeholder="e.g., 2500" value="0">
+        </div>
+        <div class="input-group">
+            <label for="food-cost">Food Cost (per day)</label>
+            <input type="number" id="food-cost" placeholder="e.g., 1000" value="0">
+        </div>
+        <div class="input-group">
+            <label for="misc-cost">Miscellaneous (per day)</label>
+            <input type="number" id="misc-cost" placeholder="e.g., 500" value="0">
+        </div>
+        <hr>
+
+        <div class="input-group">
+            <label for="round-trip" style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                <input type="checkbox" id="round-trip">
+                <span>Calculate Round Trip</span>
+            </label>
+        </div>
+
+        <button id="calculate-trip">Calculate Trip</button>
+
+        <div class="loader" id="loader">
+            <p>Calculating...</p>
+        </div>
+
+        <div id="results">
+            <h2>Trip Details</h2>
+            <p id="total-distance"></p>
+            <p id="total-duration"></p>
+            <p id="time-calculation-result"></p>
+            <p id="fuel-cost"></p>
+            <p id="round-trip-distance"></p>
+            <p id="round-trip-fuel-cost"></p>
+            <p id="total-trip-cost" class="total-cost"></p>
+            <p id="error-message" class="error"></p>
+        </div>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        // --- API KEY ---
+        // You must provide your own API key below for the application to work.
+        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; // <-- PASTE YOUR GEMINI API KEY HERE
+
+        const map = L.map('map').setView([9.9312, 76.2673], 9); // Default center (Kochi)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map); 
+
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
+        const stopsContainer = document.getElementById('stops-container');
+        const addStopBtn = document.getElementById('add-stop-btn');
+        const calculateBtn = document.getElementById('calculate-trip');
+        const resultsDiv = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('error-message');
+        const startTimeInput = document.getElementById('start-time');
+        const endTimeInput = document.getElementById('end-time');
+        
+        let stopCount = 0;
+
+        document.getElementById('start-date').valueAsDate = new Date();
+
+        startTimeInput.addEventListener('input', () => {
+            if (startTimeInput.value) {
+                endTimeInput.value = '';
+                endTimeInput.disabled = true;
+            } else {
+                endTimeInput.disabled = false;
+            }
+        });
+
+        endTimeInput.addEventListener('input', () => {
+            if (endTimeInput.value) {
+                startTimeInput.value = '';
+                startTimeInput.disabled = true;
+            } else {
+                startTimeInput.disabled = false;
+            }
+        });
+
+        addStopBtn.addEventListener('click', () => {
+            stopCount++;
+            const stopDiv = document.createElement('div');
+            stopDiv.className = 'input-group';
+            stopDiv.innerHTML = `
+                <label for="stop-${stopCount}">Stop ${stopCount}</label>
+                <input type="text" id="stop-${stopCount}" class="stop-input" placeholder="Add an intermediate stop">
+            `;
+            stopsContainer.appendChild(stopDiv);
+        });
+
+        calculateBtn.addEventListener('click', calculateTrip);
+
+        async function calculateTrip() {
+            clearResults();
+
+            if (!GEMINI_API_KEY) {
+                showError("Please add your Gemini API key to the script.");
+                return;
+            }
+
+            loader.style.display = 'block';
+
+            const origin = originInput.value;
+            const destination = destinationInput.value;
+            const stops = Array.from(document.querySelectorAll('.stop-input'))
+                               .map(input => input.value)
+                               .filter(val => val);
+
+            if (!origin || !destination) {
+                showError("Please enter an origin and a destination.");
+                return;
+            }
+
+            // Forcefully add ", Kerala, India" to all location inputs to ensure geographic accuracy.
+            const originFull = `${origin}, Kerala, India`;
+            const destinationFull = `${destination}, Kerala, India`;
+            const stopsFull = stops.map(stop => `${stop}, Kerala, India`);
+
+            let prompt = `Calculate the route for a car trip from "${originFull}" to "${destinationFull}"`;
+            if (stopsFull.length > 0) {
+                const stopsString = stopsFull.join('" via "');
+                prompt = `Calculate the route for a car trip from "${originFull}" via "${stopsString}" to "${destinationFull}"`;
+            }
+            prompt += `. The trip must be entirely within India. Provide the total distance in kilometers and total duration in minutes.`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "distance_km": { "type": "NUMBER" },
+                            "duration_minutes": { "type": "NUMBER" }
+                        },
+                        required: ["distance_km", "duration_minutes"]
+                    }
+                }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!text) {
+                    throw new Error("Received an empty response from the API.");
+                }
+
+                const result = JSON.parse(text);
+                const distanceInKm = result.distance_km;
+                const durationInSeconds = result.duration_minutes * 60;
+
+                if (distanceInKm === null || typeof distanceInKm === 'undefined' || durationInSeconds === null || typeof durationInSeconds === 'undefined') {
+                    throw new Error("Could not get distance or duration from the API's JSON response.");
+                }
+
+                displayResults(distanceInKm, durationInSeconds);
+
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                showError(error.message || "An unexpected error occurred while calculating the trip.");
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function displayResults(distanceInKm, durationInSeconds) {
+            const roundTripCheckbox = document.getElementById('round-trip');
+            const isRoundTrip = roundTripCheckbox.checked;
+
+            // Display one-way results
+            document.getElementById('total-distance').textContent = `One-Way Distance: ${distanceInKm.toFixed(2)} km`;
+            document.getElementById('total-duration').textContent = `Estimated One-Way Duration: ${formatDuration(durationInSeconds)}`;
+
+            const startTimeValue = startTimeInput.value;
+            const endTimeValue = endTimeInput.value;
+            const startDateValue = document.getElementById('start-date').value;
+
+            if (startTimeValue) {
+                const startDateTime = new Date(`${startDateValue}T${startTimeValue}`);
+                const arrivalDateTime = new Date(startDateTime.getTime() + durationInSeconds * 1000);
+                document.getElementById('time-calculation-result').textContent = `Estimated Arrival: ${arrivalDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+            } else if (endTimeValue) {
+                const endDateTime = new Date(`${startDateValue}T${endTimeValue}`);
+                const requiredStartDateTime = new Date(endDateTime.getTime() - durationInSeconds * 1000);
+                document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+            }
+
+            const mileage = parseFloat(document.getElementById('mileage').value);
+            const fuelPrice = parseFloat(document.getElementById('fuel-price').value);
+            const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
+            const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
+            const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
+            
+            let oneWayCost = 0;
+
+            if (mileage > 0 && fuelPrice > 0) {
+                const oneWayFuelNeeded = distanceInKm / mileage;
+                oneWayCost = oneWayFuelNeeded * fuelPrice;
+                document.getElementById('fuel-cost').textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
+            }
+            
+            let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
+
+            // If round trip is checked, calculate and display round trip details
+            if (isRoundTrip) {
+                const roundTripDistance = distanceInKm * 2;
+                const roundTripFuelCost = oneWayCost * 2;
+                totalCost = roundTripFuelCost + hotelCost + (foodCost * 2) + (miscCost * 2);
+
+                document.getElementById('round-trip-distance').textContent = `Round Trip Distance: ${roundTripDistance.toFixed(2)} km`;
+                document.getElementById('round-trip-fuel-cost').textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
+            }
+
+            document.getElementById('total-trip-cost').textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
+        }
+
+        function formatDuration(seconds) {
+            if (seconds === 0) return 'N/A';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            let result = '';
+            if (hours > 0) result += `${hours} hour${hours > 1 ? 's' : ''} `;
+            if (minutes > 0) result += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+            if (result === '') result = 'Less than a minute';
+            return result.trim();
+        }
+
+        function clearResults() {
+            resultsDiv.querySelectorAll('p').forEach(p => p.textContent = '');
+            errorMessage.textContent = '';
+        }
+
+        function showError(message) {
+            loader.style.display = 'none';
+            errorMessage.textContent = message;
+        }
+
+    </script>
+
+</body>
+</html>
