@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trip Planner</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
     <style>
         body {
             margin: 0;
@@ -50,7 +50,7 @@
             font-weight: 600;
             font-size: 14px;
         }
-        input[type="text"], input[type="time"], input[type="number"], input[type="checkbox"] {
+        input[type="text"], input[type="time"], input[type="number"], select {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
@@ -61,12 +61,12 @@
         input[type="checkbox"] {
             width: auto;
         }
-        input:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: #007bff;
             box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
-        input:disabled {
+        input:disabled, select:disabled {
             background-color: #e9ecef;
             opacity: 0.7;
             cursor: not-allowed;
@@ -169,17 +169,23 @@
                 <input type="time" id="end-time">
             </div>
         </div>
-
+        
+        <hr>
+        <h3>Vehicle and Fuel Details (Thiruvananthapuram)</h3>
         <div class="input-group">
             <label for="mileage">Vehicle Mileage (km/L)</label>
-            <input type="number" id="mileage" placeholder="e.g., 15">
+            <input type="number" id="mileage" placeholder="e.g., 15" value="15">
         </div>
-
+        
         <div class="input-group">
-            <label for="fuel-price">Fuel Price (per Liter)</label>
-            <input type="number" id="fuel-price" placeholder="e.g., 106">
+            <label for="fuel-type">Fuel Type</label>
+            <select id="fuel-type">
+                <option value="petrol">Petrol</option>
+                <option value="diesel">Diesel</option>
+            </select>
+            <p id="current-fuel-price-display" style="margin-top: 10px; font-weight: bold;"></p>
         </div>
-
+        
         <hr>
         <h3>Additional Expenses</h3>
         <div class="input-group">
@@ -227,12 +233,11 @@
 
     <script>
         // --- API KEY & MODEL ---
-        // Updated with the provided key and model name.
         const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; 
-        const GEMINI_MODEL = "gemini-2.0-flash";
+        const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
 
         // Initialize Leaflet map
-        const map = L.map('map').setView([9.9312, 76.2673], 9); // Default center (Kochi)
+        const map = L.map('map').setView([8.5241, 76.9366], 12); // Default center (Thiruvananthapuram)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map); 
@@ -248,10 +253,18 @@
         const errorMessage = document.getElementById('error-message');
         const startTimeInput = document.getElementById('start-time');
         const endTimeInput = document.getElementById('end-time');
-        
+        const fuelTypeDropdown = document.getElementById('fuel-type');
+        const fuelPriceDisplay = document.getElementById('current-fuel-price-display');
+
         let stopCount = 0;
+        let fuelPrices = {
+            petrol: null,
+            diesel: null
+        };
 
         // Event listeners
+        window.addEventListener('load', fetchAndDisplayFuelPrices);
+
         startTimeInput.addEventListener('input', () => {
             if (startTimeInput.value) {
                 endTimeInput.value = '';
@@ -280,9 +293,91 @@
             `;
             stopsContainer.appendChild(stopDiv);
         });
+        
+        // Add event listener for fuel type dropdown to update the displayed price
+        fuelTypeDropdown.addEventListener('change', () => {
+            updateDisplayedFuelPrice();
+        });
 
         calculateBtn.addEventListener('click', calculateTrip);
 
+        /**
+         * Fetches current fuel prices for Petrol and Diesel in Thiruvananthapuram using the Gemini API.
+         * The prices are stored in a global object and the display is updated.
+         */
+        async function fetchAndDisplayFuelPrices() {
+            if (!GEMINI_API_KEY) {
+                showError("Please add your Gemini API key to the script.");
+                return;
+            }
+
+            const prompt = `Provide the current fuel prices for petrol and diesel in Thiruvananthapuram, Kerala, India today. The response should be a JSON object with the prices in Indian Rupees (₹) per liter.`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "petrol_price": { "type": "NUMBER" },
+                            "diesel_price": { "type": "NUMBER" }
+                        },
+                        required: ["petrol_price", "diesel_price"]
+                    }
+                }
+            };
+            
+            try {
+                // Show a loading message for the fuel price fetch
+                fuelPriceDisplay.textContent = "Fetching current fuel prices...";
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!text) {
+                    throw new Error("Received an empty response from the API.");
+                }
+                
+                const prices = JSON.parse(text);
+                
+                if (prices.petrol_price && prices.diesel_price) {
+                    fuelPrices.petrol = prices.petrol_price;
+                    fuelPrices.diesel = prices.diesel_price;
+                    updateDisplayedFuelPrice();
+                } else {
+                    throw new Error("Could not parse fuel prices from the API response.");
+                }
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                fuelPriceDisplay.textContent = "Error fetching prices. Please try again later.";
+            }
+        }
+
+        /**
+         * Updates the displayed fuel price in the UI based on the selected fuel type.
+         */
+        function updateDisplayedFuelPrice() {
+            const selectedFuelType = fuelTypeDropdown.value;
+            const price = fuelPrices[selectedFuelType];
+            if (price !== null) {
+                fuelPriceDisplay.textContent = `Current Price in Thiruvananthapuram: ₹${price.toFixed(2)} per liter`;
+            } else {
+                fuelPriceDisplay.textContent = "Price not available.";
+            }
+        }
+        
         /**
          * Main function to calculate the trip details by calling the Gemini API.
          */
@@ -293,14 +388,20 @@
                 showError("Please add your Gemini API key to the script.");
                 return;
             }
+            
+            // Check if fuel prices have been fetched
+            if (fuelPrices.petrol === null || fuelPrices.diesel === null) {
+                showError("Please wait for fuel prices to be fetched before calculating.");
+                return;
+            }
 
             loader.style.display = 'block';
 
             const origin = originInput.value;
             const destination = destinationInput.value;
             const stops = Array.from(document.querySelectorAll('.stop-input'))
-                                 .map(input => input.value)
-                                 .filter(val => val);
+                                     .map(input => input.value)
+                                     .filter(val => val);
 
             if (!origin || !destination) {
                 showError("Please enter an origin and a destination.");
@@ -312,8 +413,6 @@
             const destinationFull = `${destination}, Kerala, India`;
             const stopsFull = stops.map(stop => `${stop}, Kerala, India`);
 
-            // --- PROMPT MODIFICATION ---
-            // Request weather for both origin and destination.
             let prompt = `Calculate the route for a car trip from "${originFull}" to "${destinationFull}"`;
             if (stopsFull.length > 0) {
                 const stopsString = stopsFull.join('" via "');
@@ -323,8 +422,6 @@
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
             
-            // --- SCHEMA MODIFICATION ---
-            // Added 'origin_weather' and updated 'destination_weather' to the schema.
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
@@ -379,7 +476,6 @@
                 const originWeather = result.origin_weather;
                 const destinationWeather = result.destination_weather;
 
-                // Validate the received data
                 if (distanceInKm === null || typeof distanceInKm === 'undefined' || durationInSeconds === null || typeof durationInSeconds === 'undefined') {
                     throw new Error("Could not get distance or duration from the API's JSON response.");
                 }
@@ -388,7 +484,6 @@
                     throw new Error("Could not get weather information from the API response.");
                 }
 
-                // Pass all data to the display function
                 displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather);
 
             } catch (error) {
@@ -410,7 +505,7 @@
             const roundTripCheckbox = document.getElementById('round-trip');
             const isRoundTrip = roundTripCheckbox.checked;
 
-            // --- Display Weather ---
+            // Display Weather
             const originEmoji = getWeatherEmoji(originWeather.description);
             document.getElementById('origin-weather').innerHTML = `Origin Weather: ${originEmoji} ${originWeather.description}, ${originWeather.temperature_celsius.toFixed(1)}°C`;
             
@@ -424,7 +519,7 @@
             // Calculate and display arrival/start time
             const startTimeValue = startTimeInput.value;
             const endTimeValue = endTimeInput.value;
-            const todayStr = new Date().toISOString().slice(0, 10); // Get YYYY-MM-DD for today
+            const todayStr = new Date().toISOString().slice(0, 10);
 
             if (startTimeValue) {
                 const startDateTime = new Date(`${todayStr}T${startTimeValue}`);
@@ -436,21 +531,23 @@
                 document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
             }
 
-            // Calculate costs
+            // Calculate costs using the fetched fuel price
             const mileage = parseFloat(document.getElementById('mileage').value);
-            const fuelPrice = parseFloat(document.getElementById('fuel-price').value);
-            const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
-            const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
-            const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
-            
+            const selectedFuelType = fuelTypeDropdown.value;
+            const fuelPrice = fuelPrices[selectedFuelType];
+
             let oneWayCost = 0;
 
             if (mileage > 0 && fuelPrice > 0) {
                 const oneWayFuelNeeded = distanceInKm / mileage;
                 oneWayCost = oneWayFuelNeeded * fuelPrice;
-                document.getElementById('fuel-cost').textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
+                document.getElementById('fuel-cost').textContent = `Estimated One-Way Fuel Cost (${selectedFuelType}): ₹${oneWayCost.toFixed(2)}`;
             }
             
+            const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
+            const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
+            const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
+
             let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
 
             // If round trip is checked, calculate and display round trip details
@@ -516,6 +613,5 @@
         }
 
     </script>
-
 </body>
 </html>
