@@ -10,7 +10,38 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
     <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: #e9ecef;
+            --border-color: #ddd;
+            --button-primary: linear-gradient(45deg, #007bff, #0056b3);
+            --button-secondary: #6c757d;
+            --button-secondary-hover: #5a6268;
+            --error-bg: rgba(220, 53, 69, 0.1);
+            --total-cost-color: #0056b3;
+            --toggle-bg: #ccc;
+            --toggle-thumb: #f1f1f1;
+            --toggle-checked-bg: #2196F3;
+        }
+
+        .dark-theme {
+            --bg-color: #2c3e50;
+            --text-color: #f1f1f1;
+            --card-bg: #34495e;
+            --border-color: #444;
+            --button-primary: linear-gradient(45deg, #1abc9c, #16a085);
+            --button-secondary: #7f8c8d;
+            --button-secondary-hover: #636e72;
+            --error-bg: rgba(231, 76, 60, 0.2);
+            --total-cost-color: #1abc9c;
+            --toggle-bg: #555;
+            --toggle-thumb: #f1f1f1;
+            --toggle-checked-bg: #1abc9c;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -18,20 +49,22 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
         #sidebar {
             width: 380px;
-            background: #f8f9fa;
+            background: var(--bg-color);
             padding: 20px;
             overflow-y: auto;
-            border-right: 1px solid #ddd;
+            border-right: 1px solid var(--border-color);
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
         }
         #map {
             flex: 1;
-            background-color: #e9ecef;
+            background-color: var(--card-bg);
         }
         h1 {
             font-size: 24px;
@@ -54,9 +87,11 @@
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
             font-size: 15px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
         input[type="checkbox"] {
             width: auto;
@@ -67,35 +102,36 @@
             box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
         input:disabled, select:disabled {
-            background-color: #e9ecef;
+            background-color: var(--card-bg);
             opacity: 0.7;
             cursor: not-allowed;
         }
         button {
             width: 100%;
             padding: 10px;
-            background: linear-gradient(45deg, #007bff, #0056b3);
+            background: var(--button-primary);
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
+            margin-bottom: 10px;
         }
         button:hover {
-            background: linear-gradient(45deg, #0056b3, #003d80);
+            opacity: 0.9;
         }
         #add-stop-btn {
-            background: #6c757d;
+            background: var(--button-secondary);
             margin-top: 10px;
         }
         #add-stop-btn:hover {
-            background: #5a6268;
+            background: var(--button-secondary-hover);
         }
         #results {
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 1px solid #ddd;
+            border-top: 1px solid var(--border-color);
         }
         #results h2 {
             margin-top: 0;
@@ -104,7 +140,7 @@
         #results p {
             margin: 8px 0;
             font-size: 15px;
-            background-color: #f0f2f5;
+            background-color: var(--card-bg);
             padding: 10px;
             border-radius: 6px;
         }
@@ -122,7 +158,7 @@
             margin-top: 15px;
             text-align: center;
             padding: 10px;
-            background-color: rgba(220, 53, 69, 0.1);
+            background-color: var(--error-bg);
             border-radius: 6px;
         }
        .loader {
@@ -132,17 +168,82 @@
         }
         .total-cost {
             font-weight: bold;
-            color: #0056b3;
+            color: var(--total-cost-color);
             font-size: 16px !important;
         }
         .weather-info {
             font-weight: 600;
         }
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        .theme-toggle label {
+            margin: 0;
+            cursor: pointer;
+        }
+        .vehicle-profile {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background-color: var(--card-bg);
+        }
+        .vehicle-profile h3 {
+            margin-top: 0;
+        }
+        .add-vehicle-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        /* Toggle Switch Styling */
+        .switch-label {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+            border-radius: 34px;
+            background-color: var(--toggle-bg);
+            cursor: pointer;
+            transition: background-color 0.4s;
+        }
+        .switch-label::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--toggle-thumb);
+            top: 2px;
+            left: 2px;
+            transition: transform 0.4s;
+        }
+        .theme-checkbox:checked + .switch-label {
+            background-color: var(--toggle-checked-bg);
+        }
+        .theme-checkbox:checked + .switch-label::after {
+            transform: translateX(22px);
+        }
+        .theme-checkbox {
+            display: none;
+        }
+
     </style>
 </head>
 <body>
 
     <div id="sidebar">
+        <div class="theme-toggle">
+            <label>Dark Mode</label>
+            <input type="checkbox" id="theme-switch" class="theme-checkbox">
+            <label for="theme-switch" class="switch-label"></label>
+        </div>
         <h1>Trip Planner 🚗</h1>
         
         <div class="input-group">
@@ -171,19 +272,46 @@
         </div>
         
         <hr>
-        <h3>Vehicle and Fuel Details (Thiruvananthapuram)</h3>
-        <div class="input-group">
-            <label for="mileage">Vehicle Mileage (km/L)</label>
-            <input type="number" id="mileage" placeholder="e.g., 15" value="15">
+        
+        <!-- Vehicle 1 Profile -->
+        <div class="vehicle-profile">
+            <h3>Vehicle 1 Details</h3>
+            <div class="input-group">
+                <label for="mileage1">Vehicle Mileage (km/L)</label>
+                <input type="number" id="mileage1" placeholder="e.g., 15" value="15">
+            </div>
+            
+            <div class="input-group">
+                <label for="fuel-type1">Fuel Type</label>
+                <select id="fuel-type1">
+                    <option value="petrol">Petrol</option>
+                    <option value="diesel">Diesel</option>
+                </select>
+                <p id="current-fuel-price-display1" style="margin-top: 10px; font-weight: bold;"></p>
+            </div>
         </div>
         
-        <div class="input-group">
-            <label for="fuel-type">Fuel Type</label>
-            <select id="fuel-type">
-                <option value="petrol">Petrol</option>
-                <option value="diesel">Diesel</option>
-            </select>
-            <p id="current-fuel-price-display" style="margin-top: 10px; font-weight: bold;"></p>
+        <div class="add-vehicle-option">
+            <label for="add-vehicle2-checkbox" style="font-weight: normal;">Add Second Vehicle</label>
+            <input type="checkbox" id="add-vehicle2-checkbox">
+        </div>
+
+        <!-- Vehicle 2 Profile -->
+        <div id="vehicle2-profile-container" class="vehicle-profile" style="display: none;">
+            <h3>Vehicle 2 Details</h3>
+            <div class="input-group">
+                <label for="mileage2">Vehicle Mileage (km/L)</label>
+                <input type="number" id="mileage2" placeholder="e.g., 20">
+            </div>
+            
+            <div class="input-group">
+                <label for="fuel-type2">Fuel Type</label>
+                <select id="fuel-type2">
+                    <option value="petrol">Petrol</option>
+                    <option value="diesel">Diesel</option>
+                </select>
+                <p id="current-fuel-price-display2" style="margin-top: 10px; font-weight: bold;"></p>
+            </div>
         </div>
         
         <hr>
@@ -210,6 +338,7 @@
         </div>
 
         <button id="calculate-trip">Calculate Trip</button>
+        <button id="export-pdf-btn">Export as PDF</button>
 
         <div class="loader" id="loader">
             <p>Calculating...</p>
@@ -222,10 +351,25 @@
             <p id="total-distance"></p>
             <p id="total-duration"></p>
             <p id="time-calculation-result"></p>
-            <p id="fuel-cost"></p>
-            <p id="round-trip-distance"></p>
-            <p id="round-trip-fuel-cost"></p>
-            <p id="total-trip-cost" class="total-cost"></p>
+            
+            <!-- Results for Vehicle 1 -->
+            <div id="vehicle1-results" class="vehicle-results-section">
+                <h3>Vehicle 1 Cost Breakdown</h3>
+                <p id="fuel-cost1"></p>
+                <p id="round-trip-distance1" style="display: none;"></p>
+                <p id="round-trip-fuel-cost1" style="display: none;"></p>
+                <p id="total-trip-cost1" class="total-cost"></p>
+            </div>
+
+            <!-- Results for Vehicle 2 -->
+            <div id="vehicle2-results" class="vehicle-results-section" style="display: none;">
+                <h3>Vehicle 2 Cost Breakdown</h3>
+                <p id="fuel-cost2"></p>
+                <p id="round-trip-distance2" style="display: none;"></p>
+                <p id="round-trip-fuel-cost2" style="display: none;"></p>
+                <p id="total-trip-cost2" class="total-cost"></p>
+            </div>
+
             <p id="error-message" class="error"></p>
         </div>
     </div>
@@ -248,13 +392,26 @@
         const stopsContainer = document.getElementById('stops-container');
         const addStopBtn = document.getElementById('add-stop-btn');
         const calculateBtn = document.getElementById('calculate-trip');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
         const resultsDiv = document.getElementById('results');
         const loader = document.getElementById('loader');
         const errorMessage = document.getElementById('error-message');
         const startTimeInput = document.getElementById('start-time');
         const endTimeInput = document.getElementById('end-time');
-        const fuelTypeDropdown = document.getElementById('fuel-type');
-        const fuelPriceDisplay = document.getElementById('current-fuel-price-display');
+        
+        // Vehicle 1 elements
+        const mileageInput1 = document.getElementById('mileage1');
+        const fuelTypeDropdown1 = document.getElementById('fuel-type1');
+        const fuelPriceDisplay1 = document.getElementById('current-fuel-price-display1');
+        
+        // Vehicle 2 elements
+        const addVehicle2Checkbox = document.getElementById('add-vehicle2-checkbox');
+        const vehicle2ProfileContainer = document.getElementById('vehicle2-profile-container');
+        const mileageInput2 = document.getElementById('mileage2');
+        const fuelTypeDropdown2 = document.getElementById('fuel-type2');
+        const fuelPriceDisplay2 = document.getElementById('current-fuel-price-display2');
+
+        const themeSwitch = document.getElementById('theme-switch');
 
         let stopCount = 0;
         let fuelPrices = {
@@ -262,8 +419,11 @@
             diesel: null
         };
 
-        // Event listeners
-        window.addEventListener('load', fetchAndDisplayFuelPrices);
+        // --- Event Listeners ---
+        window.addEventListener('load', () => {
+            fetchAndDisplayFuelPrices();
+            applySavedTheme();
+        });
 
         startTimeInput.addEventListener('input', () => {
             if (startTimeInput.value) {
@@ -294,12 +454,48 @@
             stopsContainer.appendChild(stopDiv);
         });
         
-        // Add event listener for fuel type dropdown to update the displayed price
-        fuelTypeDropdown.addEventListener('change', () => {
-            updateDisplayedFuelPrice();
-        });
+        fuelTypeDropdown1.addEventListener('change', () => updateDisplayedFuelPrice(1));
+        fuelTypeDropdown2.addEventListener('change', () => updateDisplayedFuelPrice(2));
 
         calculateBtn.addEventListener('click', calculateTrip);
+        exportPdfBtn.addEventListener('click', exportResultsToPdf);
+        themeSwitch.addEventListener('change', toggleTheme);
+        addVehicle2Checkbox.addEventListener('change', toggleVehicle2Display);
+
+        // --- Theme Functions ---
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeSwitch.checked = true;
+            }
+        }
+
+        function toggleTheme() {
+            if (themeSwitch.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        /**
+         * Toggles the display of the second vehicle's details section.
+         */
+        function toggleVehicle2Display() {
+            if (addVehicle2Checkbox.checked) {
+                vehicle2ProfileContainer.style.display = 'block';
+                document.getElementById('vehicle2-results').style.display = 'block';
+            } else {
+                vehicle2ProfileContainer.style.display = 'none';
+                document.getElementById('vehicle2-results').style.display = 'none';
+                // Clear inputs for the second vehicle to prevent calculations
+                mileageInput2.value = '';
+                fuelTypeDropdown2.value = 'petrol';
+            }
+        }
 
         /**
          * Fetches current fuel prices for Petrol and Diesel in Thiruvananthapuram using the Gemini API.
@@ -330,8 +526,8 @@
             };
             
             try {
-                // Show a loading message for the fuel price fetch
-                fuelPriceDisplay.textContent = "Fetching current fuel prices...";
+                fuelPriceDisplay1.textContent = "Fetching...";
+                fuelPriceDisplay2.textContent = "Fetching...";
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -355,20 +551,28 @@
                 if (prices.petrol_price && prices.diesel_price) {
                     fuelPrices.petrol = prices.petrol_price;
                     fuelPrices.diesel = prices.diesel_price;
-                    updateDisplayedFuelPrice();
+                    updateDisplayedFuelPrice(1);
+                    if (addVehicle2Checkbox.checked) {
+                        updateDisplayedFuelPrice(2);
+                    }
                 } else {
                     throw new Error("Could not parse fuel prices from the API response.");
                 }
             } catch (error) {
                 console.error('Gemini API error:', error);
-                fuelPriceDisplay.textContent = "Error fetching prices. Please try again later.";
+                const errorMsg = "Error fetching prices. Please try again later.";
+                fuelPriceDisplay1.textContent = errorMsg;
+                fuelPriceDisplay2.textContent = errorMsg;
             }
         }
 
         /**
-         * Updates the displayed fuel price in the UI based on the selected fuel type.
+         * Updates the displayed fuel price for a specific vehicle.
+         * @param {number} vehicleId - The ID of the vehicle (1 or 2).
          */
-        function updateDisplayedFuelPrice() {
+        function updateDisplayedFuelPrice(vehicleId) {
+            const fuelTypeDropdown = document.getElementById(`fuel-type${vehicleId}`);
+            const fuelPriceDisplay = document.getElementById(`current-fuel-price-display${vehicleId}`);
             const selectedFuelType = fuelTypeDropdown.value;
             const price = fuelPrices[selectedFuelType];
             if (price !== null) {
@@ -389,7 +593,6 @@
                 return;
             }
             
-            // Check if fuel prices have been fetched
             if (fuelPrices.petrol === null || fuelPrices.diesel === null) {
                 showError("Please wait for fuel prices to be fetched before calculating.");
                 return;
@@ -505,22 +708,19 @@
             const roundTripCheckbox = document.getElementById('round-trip');
             const isRoundTrip = roundTripCheckbox.checked;
 
-            // Display Weather
+            // Display weather and general trip details
             const originEmoji = getWeatherEmoji(originWeather.description);
             document.getElementById('origin-weather').innerHTML = `Origin Weather: ${originEmoji} ${originWeather.description}, ${originWeather.temperature_celsius.toFixed(1)}°C`;
             
             const destEmoji = getWeatherEmoji(destinationWeather.description);
             document.getElementById('destination-weather').innerHTML = `Destination Weather: ${destEmoji} ${destinationWeather.description}, ${destinationWeather.temperature_celsius.toFixed(1)}°C`;
 
-            // Display one-way trip details
             document.getElementById('total-distance').textContent = `One-Way Distance: ${distanceInKm.toFixed(2)} km`;
             document.getElementById('total-duration').textContent = `Estimated One-Way Duration: ${formatDuration(durationInSeconds)}`;
 
-            // Calculate and display arrival/start time
             const startTimeValue = startTimeInput.value;
             const endTimeValue = endTimeInput.value;
             const todayStr = new Date().toISOString().slice(0, 10);
-
             if (startTimeValue) {
                 const startDateTime = new Date(`${todayStr}T${startTimeValue}`);
                 const arrivalDateTime = new Date(startDateTime.getTime() + durationInSeconds * 1000);
@@ -531,36 +731,82 @@
                 document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
             }
 
-            // Calculate costs using the fetched fuel price
-            const mileage = parseFloat(document.getElementById('mileage').value);
-            const selectedFuelType = fuelTypeDropdown.value;
-            const fuelPrice = fuelPrices[selectedFuelType];
+            // Display results for Vehicle 1
+            displayVehicleResults(1, distanceInKm, isRoundTrip);
+            
+            // Display results for Vehicle 2 if the checkbox is checked and mileage is provided
+            if (addVehicle2Checkbox.checked) {
+                const mileage2 = parseFloat(mileageInput2.value);
+                if (!isNaN(mileage2) && mileage2 > 0) {
+                    document.getElementById('vehicle2-results').style.display = 'block';
+                    displayVehicleResults(2, distanceInKm, isRoundTrip);
+                } else {
+                    showError("Please enter a valid mileage for the second vehicle.");
+                }
+            } else {
+                document.getElementById('vehicle2-results').style.display = 'none';
+            }
+        }
+
+        /**
+         * Calculates and displays the results for a single vehicle.
+         * @param {number} vehicleId - The ID of the vehicle (1 or 2).
+         * @param {number} distanceInKm - The total distance of the trip.
+         * @param {boolean} isRoundTrip - Whether the trip is a round trip.
+         */
+        function displayVehicleResults(vehicleId, distanceInKm, isRoundTrip) {
+            const mileageInput = document.getElementById(`mileage${vehicleId}`);
+            const fuelTypeDropdown = document.getElementById(`fuel-type${vehicleId}`);
+            const fuelPrice = fuelPrices[fuelTypeDropdown.value];
+            const mileage = parseFloat(mileageInput.value);
 
             let oneWayCost = 0;
-
             if (mileage > 0 && fuelPrice > 0) {
                 const oneWayFuelNeeded = distanceInKm / mileage;
                 oneWayCost = oneWayFuelNeeded * fuelPrice;
-                document.getElementById('fuel-cost').textContent = `Estimated One-Way Fuel Cost (${selectedFuelType}): ₹${oneWayCost.toFixed(2)}`;
             }
-            
+
             const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
             const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
             const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
 
             let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
 
-            // If round trip is checked, calculate and display round trip details
+            document.getElementById(`fuel-cost${vehicleId}`).textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
+            document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'none';
+            document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'none';
+
             if (isRoundTrip) {
                 const roundTripDistance = distanceInKm * 2;
                 const roundTripFuelCost = oneWayCost * 2;
                 totalCost = roundTripFuelCost + hotelCost + (foodCost * 2) + (miscCost * 2);
 
-                document.getElementById('round-trip-distance').textContent = `Round Trip Distance: ${roundTripDistance.toFixed(2)} km`;
-                document.getElementById('round-trip-fuel-cost').textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
+                document.getElementById(`round-trip-distance${vehicleId}`).textContent = `Round Trip Distance: ${roundTripDistance.toFixed(2)} km`;
+                document.getElementById(`round-trip-fuel-cost${vehicleId}`).textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
+                document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'block';
+                document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'block';
             }
+            
+            document.getElementById(`total-trip-cost${vehicleId}`).textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
+        }
 
-            document.getElementById('total-trip-cost').textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
+        /**
+         * Exports the content of the results section as a PDF.
+         */
+        function exportResultsToPdf() {
+            const element = document.getElementById('results');
+            if (element.children.length > 2) {
+                const opt = {
+                    margin: 1,
+                    filename: 'trip_plan.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                html2pdf().from(element).set(opt).save();
+            } else {
+                showError("Please calculate a trip before exporting to PDF.");
+            }
         }
 
         /**
