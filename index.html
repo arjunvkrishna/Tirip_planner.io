@@ -25,6 +25,10 @@
             --toggle-bg: #ccc;
             --toggle-thumb: #f1f1f1;
             --toggle-checked-bg: #2196F3;
+            --tab-active-bg: #007bff;
+            --tab-inactive-bg: #e9ecef;
+            --tab-active-color: #fff;
+            --tab-inactive-color: #333;
         }
 
         .dark-theme {
@@ -40,6 +44,10 @@
             --toggle-bg: #555;
             --toggle-thumb: #f1f1f1;
             --toggle-checked-bg: #1abc9c;
+            --tab-active-bg: #1abc9c;
+            --tab-inactive-bg: #34495e;
+            --tab-active-color: #fff;
+            --tab-inactive-color: #f1f1f1;
         }
 
         body {
@@ -233,6 +241,63 @@
         .theme-checkbox {
             display: none;
         }
+        /* New Styles for Tabs */
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            border: none;
+            background-color: var(--tab-inactive-bg);
+            color: var(--tab-inactive-color);
+            font-weight: 600;
+            transition: background-color 0.3s, color 0.3s;
+            border-radius: 4px 4px 0 0;
+            margin-bottom: 0;
+        }
+        .tab-button.active {
+            background: var(--tab-active-bg);
+            color: var(--tab-active-color);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #recent-searches-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .recent-search-item {
+            background-color: var(--card-bg);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .recent-search-item:hover {
+            background-color: var(--border-color);
+        }
+        .recent-search-item p {
+            margin: 0;
+            font-size: 14px;
+        }
+        .recent-search-item .route {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .recent-search-item .stops {
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
 
     </style>
 </head>
@@ -245,136 +310,293 @@
             <label for="theme-switch" class="switch-label"></label>
         </div>
         <h1>Trip Planner 🚗</h1>
-        
-        <div class="input-group">
-            <label for="origin">Origin</label>
-            <input type="text" id="origin" placeholder="e.g., Ernakulam">
+
+        <!-- Tabs Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab('planner')">Planner</button>
+            <button class="tab-button" onclick="openTab('recent')">Recent Searches</button>
         </div>
 
-        <div id="stops-container">
-        </div>
-        <button id="add-stop-btn" type="button">Add Stop</button>
-
-        <div class="input-group" style="margin-top: 15px;">
-            <label for="destination">Destination</label>
-            <input type="text" id="destination" placeholder="e.g., Munnar">
-        </div>
-
-        <div class="time-toggle">
-            <div class="time-option">
-                <label for="start-time">Start Time</label>
-                <input type="time" id="start-time">
-            </div>
-            <div class="time-option">
-                <label for="end-time">Arrival Time</label>
-                <input type="time" id="end-time">
-            </div>
-        </div>
-        
-        <hr>
-        
-        <!-- Vehicle 1 Profile -->
-        <div class="vehicle-profile">
-            <h3>Vehicle 1 Details</h3>
+        <!-- Planner Tab Content -->
+        <div id="planner" class="tab-content active">
             <div class="input-group">
-                <label for="mileage1">Vehicle Mileage (km/L)</label>
-                <input type="number" id="mileage1" placeholder="e.g., 15" value="15">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label for="origin" style="margin-bottom: 0;">Origin</label>
+                    <button id="use-current-location-btn" type="button" style="width: auto; padding: 5px 10px; font-size: 12px; font-weight: 500; background: var(--button-secondary); margin: 0;">📍 Use My Location</button>
+                </div>
+                <input type="text" id="origin" placeholder="e.g., Ernakulam">
+            </div>
+
+            <div id="stops-container"></div>
+            <button id="add-stop-btn" type="button">Add Stop</button>
+
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="destination">Destination</label>
+                <input type="text" id="destination" placeholder="e.g., Munnar">
+            </div>
+
+            <div class="time-toggle">
+                <div class="time-option">
+                    <label for="start-time">Start Time</label>
+                    <input type="time" id="start-time">
+                </div>
+                <div class="time-option">
+                    <label for="end-time">Arrival Time</label>
+                    <input type="time" id="end-time">
+                </div>
             </div>
             
+            <hr>
+            
+            <div class="vehicle-profile">
+                <h3>Vehicle 1 Details</h3>
+                <div class="input-group">
+                    <label for="mileage1">Vehicle Mileage (km/L)</label>
+                    <input type="number" id="mileage1" placeholder="e.g., 15" value="15">
+                </div>
+                <div class="input-group">
+                    <label for="fuel-type1">Fuel Type</label>
+                    <select id="fuel-type1">
+                        <option value="petrol">Petrol</option>
+                        <option value="diesel">Diesel</option>
+                    </select>
+                    <p id="current-fuel-price-display1" style="margin-top: 10px; font-weight: bold;"></p>
+                </div>
+            </div>
+            
+            <div class="add-vehicle-option">
+                <label for="add-vehicle2-checkbox" style="font-weight: normal;">Add Second Vehicle</label>
+                <input type="checkbox" id="add-vehicle2-checkbox">
+            </div>
+
+            <div id="vehicle2-profile-container" class="vehicle-profile" style="display: none;">
+                <h3>Vehicle 2 Details</h3>
+                <div class="input-group">
+                    <label for="mileage2">Vehicle Mileage (km/L)</label>
+                    <input type="number" id="mileage2" placeholder="e.g., 20">
+                </div>
+                <div class="input-group">
+                    <label for="fuel-type2">Fuel Type</label>
+                    <select id="fuel-type2">
+                        <option value="petrol">Petrol</option>
+                        <option value="diesel">Diesel</option>
+                    </select>
+                    <p id="current-fuel-price-display2" style="margin-top: 10px; font-weight: bold;"></p>
+                </div>
+            </div>
+            
+            <hr>
+            <h3>Additional Expenses</h3>
             <div class="input-group">
-                <label for="fuel-type1">Fuel Type</label>
-                <select id="fuel-type1">
-                    <option value="petrol">Petrol</option>
-                    <option value="diesel">Diesel</option>
-                </select>
-                <p id="current-fuel-price-display1" style="margin-top: 10px; font-weight: bold;"></p>
+                <label for="hotel-cost">Hotel Cost</label>
+                <input type="number" id="hotel-cost" placeholder="e.g., 2500" value="0">
+            </div>
+            <div class="input-group">
+                <label for="food-cost">Food Cost (per day)</label>
+                <input type="number" id="food-cost" placeholder="e.g., 1000" value="0">
+            </div>
+            <div class="input-group">
+                <label for="misc-cost">Miscellaneous (per day)</label>
+                <input type="number" id="misc-cost" placeholder="e.g., 500" value="0">
+            </div>
+            <hr>
+
+            <div class="input-group">
+                <label for="round-trip" style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                    <input type="checkbox" id="round-trip">
+                    <span>Calculate Round Trip</span>
+                </label>
+            </div>
+
+            <button id="calculate-trip">Calculate Trip</button>
+            <button id="export-pdf-btn">Export as PDF</button>
+
+            <div class="loader" id="loader">
+                <p>Calculating...</p>
+            </div>
+
+            <div id="results">
+                <h2>Trip Details</h2>
+                <p id="origin-weather" class="weather-info"></p>
+                <p id="destination-weather" class="weather-info"></p>
+                <p id="total-distance"></p>
+                <p id="total-duration"></p>
+                <p id="time-calculation-result"></p>
+                
+                <div id="vehicle1-results" class="vehicle-results-section">
+                    <h3>Vehicle 1 Cost Breakdown</h3>
+                    <p id="fuel-cost1"></p>
+                    <p id="round-trip-distance1" style="display: none;"></p>
+                    <p id="round-trip-fuel-cost1" style="display: none;"></p>
+                    <p id="total-trip-cost1" class="total-cost"></p>
+                </div>
+
+                <div id="vehicle2-results" class="vehicle-results-section" style="display: none;">
+                    <h3>Vehicle 2 Cost Breakdown</h3>
+                    <p id="fuel-cost2"></p>
+                    <p id="round-trip-distance2" style="display: none;"></p>
+                    <p id="round-trip-fuel-cost2" style="display: none;"></p>
+                    <p id="total-trip-cost2" class="total-cost"></p>
+                </div>
+
+                <p id="error-message" class="error"></p>
             </div>
         </div>
         
-        <div class="add-vehicle-option">
-            <label for="add-vehicle2-checkbox" style="font-weight: normal;">Add Second Vehicle</label>
-            <input type="checkbox" id="add-vehicle2-checkbox">
-        </div>
-
-        <!-- Vehicle 2 Profile -->
-        <div id="vehicle2-profile-container" class="vehicle-profile" style="display: none;">
-            <h3>Vehicle 2 Details</h3>
-            <div class="input-group">
-                <label for="mileage2">Vehicle Mileage (km/L)</label>
-                <input type="number" id="mileage2" placeholder="e.g., 20">
-            </div>
-            
-            <div class="input-group">
-                <label for="fuel-type2">Fuel Type</label>
-                <select id="fuel-type2">
-                    <option value="petrol">Petrol</option>
-                    <option value="diesel">Diesel</option>
-                </select>
-                <p id="current-fuel-price-display2" style="margin-top: 10px; font-weight: bold;"></p>
+        <!-- Recent Searches Tab Content -->
+        <div id="recent" class="tab-content">
+            <h3>Your Recent Searches</h3>
+            <div id="recent-searches-list">
+                <!-- Recent searches will be dynamically populated here -->
+                <p>No recent searches found.</p>
             </div>
         </div>
-        
-        <hr>
-        <h3>Additional Expenses</h3>
-        <div class="input-group">
-            <label for="hotel-cost">Hotel Cost</label>
-            <input type="number" id="hotel-cost" placeholder="e.g., 2500" value="0">
-        </div>
-        <div class="input-group">
-            <label for="food-cost">Food Cost (per day)</label>
-            <input type="number" id="food-cost" placeholder="e.g., 1000" value="0">
-        </div>
-        <div class="input-group">
-            <label for="misc-cost">Miscellaneous (per day)</label>
-            <input type="number" id="misc-cost" placeholder="e.g., 500" value="0">
-        </div>
-        <hr>
 
-        <div class="input-group">
-            <label for="round-trip" style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                <input type="checkbox" id="round-trip">
-                <span>Calculate Round Trip</span>
-            </label>
-        </div>
-
-        <button id="calculate-trip">Calculate Trip</button>
-        <button id="export-pdf-btn">Export as PDF</button>
-
-        <div class="loader" id="loader">
-            <p>Calculating...</p>
-        </div>
-
-        <div id="results">
-            <h2>Trip Details</h2>
-            <p id="origin-weather" class="weather-info"></p>
-            <p id="destination-weather" class="weather-info"></p>
-            <p id="total-distance"></p>
-            <p id="total-duration"></p>
-            <p id="time-calculation-result"></p>
-            
-            <!-- Results for Vehicle 1 -->
-            <div id="vehicle1-results" class="vehicle-results-section">
-                <h3>Vehicle 1 Cost Breakdown</h3>
-                <p id="fuel-cost1"></p>
-                <p id="round-trip-distance1" style="display: none;"></p>
-                <p id="round-trip-fuel-cost1" style="display: none;"></p>
-                <p id="total-trip-cost1" class="total-cost"></p>
-            </div>
-
-            <!-- Results for Vehicle 2 -->
-            <div id="vehicle2-results" class="vehicle-results-section" style="display: none;">
-                <h3>Vehicle 2 Cost Breakdown</h3>
-                <p id="fuel-cost2"></p>
-                <p id="round-trip-distance2" style="display: none;"></p>
-                <p id="round-trip-fuel-cost2" style="display: none;"></p>
-                <p id="total-trip-cost2" class="total-cost"></p>
-            </div>
-
-            <p id="error-message" class="error"></p>
-        </div>
     </div>
     <div id="map"></div>
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // These variables are placeholders and will be provided by the environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "your-api-key", authDomain: "your-auth-domain", ...console.error("Firebase config not found") };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+
+        // Import statements for Firebase services
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+        // Initialize Firebase
+        setLogLevel('debug');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUserId = null;
+
+        // --- Firebase Authentication ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                console.log("User is signed in with UID:", user.uid);
+                currentUserId = user.uid;
+                fetchRecentSearches(); // Fetch searches once the user is authenticated
+            } else {
+                console.log("User is signed out.");
+                currentUserId = null;
+            }
+        });
+
+        // Sign in the user
+        async function signInUser() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error signing in:", error);
+                showError("Could not connect to the database. Please refresh.");
+            }
+        }
+        
+        // Call the sign-in function on script load
+        signInUser();
+
+        // --- Firestore Functions ---
+        /**
+         * Saves a trip search to the Firestore database.
+         * @param {string} origin - The starting point of the trip.
+         * @param {string} destination - The end point of the trip.
+         * @param {string[]} stops - An array of intermediate stops.
+         * @param {string} ipAddress - The user's IP address.
+         */
+        async function saveSearchToDb(origin, destination, stops, ipAddress) {
+            if (!currentUserId) {
+                console.error("Cannot save search: User not authenticated.");
+                return;
+            }
+            try {
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/public/searches`), {
+                    userId: currentUserId,
+                    ipAddress: ipAddress, // Save the IP address
+                    origin: origin,
+                    destination: destination,
+                    stops: stops,
+                    timestamp: serverTimestamp()
+                });
+                console.log("Document written with ID: ", docRef.id);
+                fetchRecentSearches(); // Refresh the list after saving
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        }
+
+        /**
+         * Fetches the 10 most recent searches for the current user from Firestore.
+         */
+        async function fetchRecentSearches() {
+            if (!currentUserId) return;
+
+            const recentSearchesList = document.getElementById('recent-searches-list');
+            recentSearchesList.innerHTML = '<p>Loading recent searches...</p>';
+
+            try {
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/searches`),
+                    where("userId", "==", currentUserId),
+                    orderBy("timestamp", "desc"),
+                    limit(10)
+                );
+
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) {
+                    recentSearchesList.innerHTML = '<p>No recent searches found.</p>';
+                    return;
+                }
+                
+                recentSearchesList.innerHTML = ''; // Clear the list
+                querySnapshot.forEach((doc) => {
+                    const search = doc.data();
+                    const searchItem = document.createElement('div');
+                    searchItem.className = 'recent-search-item';
+                    
+                    let stopsText = 'No stops';
+                    if (search.stops && search.stops.length > 0) {
+                        stopsText = `Via: ${search.stops.join(', ')}`;
+                    }
+
+                    // Handle display for "current location" lookups which have no destination
+                    const routeText = search.destination 
+                        ? `${search.origin} → ${search.destination}`
+                        : `📍 Current Location: ${search.origin}`;
+
+                    searchItem.innerHTML = `
+                        <p class="route">${routeText}</p>
+                        <p class="stops">${stopsText}</p>
+                    `;
+                    
+                    // Add click listener to populate the form with this search data
+                    searchItem.addEventListener('click', () => {
+                        populateFormFromSearch(search);
+                    });
+
+                    recentSearchesList.appendChild(searchItem);
+                });
+            } catch (error) {
+                console.error("Error fetching recent searches:", error);
+                recentSearchesList.innerHTML = '<p>Could not load recent searches.</p>';
+            }
+        }
+
+        // Make functions globally accessible for inline event handlers
+        window.fetchRecentSearches = fetchRecentSearches;
+        window.saveSearchToDb = saveSearchToDb;
+
+    </script>
+    
     <script>
         // --- API KEY & MODEL ---
         const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; 
@@ -388,6 +610,7 @@
 
         // Get DOM elements
         const originInput = document.getElementById('origin');
+        const useCurrentLocationBtn = document.getElementById('use-current-location-btn');
         const destinationInput = document.getElementById('destination');
         const stopsContainer = document.getElementById('stops-container');
         const addStopBtn = document.getElementById('add-stop-btn');
@@ -399,12 +622,10 @@
         const startTimeInput = document.getElementById('start-time');
         const endTimeInput = document.getElementById('end-time');
         
-        // Vehicle 1 elements
         const mileageInput1 = document.getElementById('mileage1');
         const fuelTypeDropdown1 = document.getElementById('fuel-type1');
         const fuelPriceDisplay1 = document.getElementById('current-fuel-price-display1');
         
-        // Vehicle 2 elements
         const addVehicle2Checkbox = document.getElementById('add-vehicle2-checkbox');
         const vehicle2ProfileContainer = document.getElementById('vehicle2-profile-container');
         const mileageInput2 = document.getElementById('mileage2');
@@ -414,10 +635,7 @@
         const themeSwitch = document.getElementById('theme-switch');
 
         let stopCount = 0;
-        let fuelPrices = {
-            petrol: null,
-            diesel: null
-        };
+        let fuelPrices = { petrol: null, diesel: null };
 
         // --- Event Listeners ---
         window.addEventListener('load', () => {
@@ -425,6 +643,7 @@
             applySavedTheme();
         });
 
+        useCurrentLocationBtn.addEventListener('click', handleGetCurrentLocation);
         startTimeInput.addEventListener('input', () => {
             if (startTimeInput.value) {
                 endTimeInput.value = '';
@@ -433,7 +652,6 @@
                 endTimeInput.disabled = false;
             }
         });
-
         endTimeInput.addEventListener('input', () => {
             if (endTimeInput.value) {
                 startTimeInput.value = '';
@@ -442,27 +660,131 @@
                 startTimeInput.disabled = false;
             }
         });
-
-        addStopBtn.addEventListener('click', () => {
-            stopCount++;
-            const stopDiv = document.createElement('div');
-            stopDiv.className = 'input-group';
-            stopDiv.innerHTML = `
-                <label for="stop-${stopCount}">Stop ${stopCount}</label>
-                <input type="text" id="stop-${stopCount}" class="stop-input" placeholder="Add an intermediate stop">
-            `;
-            stopsContainer.appendChild(stopDiv);
-        });
-        
+        addStopBtn.addEventListener('click', () => addStopInput());
         fuelTypeDropdown1.addEventListener('change', () => updateDisplayedFuelPrice(1));
         fuelTypeDropdown2.addEventListener('change', () => updateDisplayedFuelPrice(2));
-
         calculateBtn.addEventListener('click', calculateTrip);
         exportPdfBtn.addEventListener('click', exportResultsToPdf);
         themeSwitch.addEventListener('change', toggleTheme);
         addVehicle2Checkbox.addEventListener('change', toggleVehicle2Display);
 
-        // --- Theme Functions ---
+        // --- Helper Functions ---
+        /**
+         * Fetches the user's public IP address.
+         * @returns {Promise<string|null>} The IP address or null if an error occurs.
+         */
+        async function getUserIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                if (!response.ok) return null;
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error("Could not fetch IP address:", error);
+                return null;
+            }
+        }
+
+        // --- UI Functions ---
+        function openTab(tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (tabName === 'recent') {
+                window.fetchRecentSearches();
+            }
+        }
+
+        function addStopInput(value = '') {
+            stopCount++;
+            const stopDiv = document.createElement('div');
+            stopDiv.className = 'input-group';
+            stopDiv.innerHTML = `
+                <label for="stop-${stopCount}">Stop ${stopCount}</label>
+                <input type="text" id="stop-${stopCount}" class="stop-input" placeholder="Add an intermediate stop" value="${value}">
+            `;
+            stopsContainer.appendChild(stopDiv);
+        }
+
+        function populateFormFromSearch(searchData) {
+            originInput.value = searchData.origin;
+            destinationInput.value = searchData.destination || ''; // Handle null destination
+            
+            stopsContainer.innerHTML = '';
+            stopCount = 0;
+
+            if (searchData.stops && searchData.stops.length > 0) {
+                searchData.stops.forEach(stopValue => {
+                    addStopInput(stopValue);
+                });
+            }
+            
+            openTab('planner');
+        }
+
+        async function handleGetCurrentLocation() {
+            if (navigator.geolocation) {
+                originInput.value = "";
+                originInput.placeholder = "Fetching your location...";
+                originInput.disabled = true;
+                useCurrentLocationBtn.disabled = true;
+                useCurrentLocationBtn.textContent = "Fetching...";
+
+                const ipAddress = await getUserIP(); // Get IP first
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const { latitude, longitude } = position.coords;
+                        try {
+                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+                            if (!response.ok) throw new Error('Reverse geocoding request failed.');
+                            const data = await response.json();
+                            const city = data.address.city || data.address.town || data.address.village || '';
+                            const state = data.address.state || '';
+                            const address = [city, state].filter(Boolean).join(', ');
+                            const finalAddress = address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                            
+                            originInput.value = finalAddress;
+                            // Save the current location lookup to the database
+                            window.saveSearchToDb(finalAddress, null, [], ipAddress);
+
+                        } catch (error) {
+                            console.error("Error fetching address:", error);
+                            showError("Could not fetch address. Please enter manually.");
+                            originInput.placeholder = "e.g., Ernakulam";
+                        } finally {
+                            originInput.disabled = false;
+                            useCurrentLocationBtn.disabled = false;
+                            useCurrentLocationBtn.innerHTML = "📍 Use My Location";
+                        }
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        let message = "Could not get your location. ";
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED: message += "Please allow location access."; break;
+                            case error.POSITION_UNAVAILABLE: message += "Location information is unavailable."; break;
+                            case error.TIMEOUT: message += "Request timed out."; break;
+                            default: message += "An unknown error occurred."; break;
+                        }
+                        showError(message);
+                        originInput.placeholder = "e.g., Ernakulam";
+                        originInput.disabled = false;
+                        useCurrentLocationBtn.disabled = false;
+                        useCurrentLocationBtn.innerHTML = "📍 Use My Location";
+                    }
+                );
+            } else {
+                showError("Geolocation is not supported by your browser.");
+            }
+        }
+
         function applySavedTheme() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             if (savedTheme === 'dark') {
@@ -481,9 +803,6 @@
             }
         }
 
-        /**
-         * Toggles the display of the second vehicle's details section.
-         */
         function toggleVehicle2Display() {
             if (addVehicle2Checkbox.checked) {
                 vehicle2ProfileContainer.style.display = 'block';
@@ -491,70 +810,39 @@
             } else {
                 vehicle2ProfileContainer.style.display = 'none';
                 document.getElementById('vehicle2-results').style.display = 'none';
-                // Clear inputs for the second vehicle to prevent calculations
                 mileageInput2.value = '';
                 fuelTypeDropdown2.value = 'petrol';
             }
         }
 
-        /**
-         * Fetches current fuel prices for Petrol and Diesel in Thiruvananthapuram using the Gemini API.
-         * The prices are stored in a global object and the display is updated.
-         */
         async function fetchAndDisplayFuelPrices() {
             if (!GEMINI_API_KEY) {
                 showError("Please add your Gemini API key to the script.");
                 return;
             }
-
             const prompt = `Provide the current fuel prices for petrol and diesel in Thiruvananthapuram, Kerala, India today. The response should be a JSON object with the prices in Indian Rupees (₹) per liter.`;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-            
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "petrol_price": { "type": "NUMBER" },
-                            "diesel_price": { "type": "NUMBER" }
-                        },
-                        required: ["petrol_price", "diesel_price"]
-                    }
+                    responseSchema: { type: "OBJECT", properties: { "petrol_price": { "type": "NUMBER" }, "diesel_price": { "type": "NUMBER" } }, required: ["petrol_price", "diesel_price"] }
                 }
             };
-            
             try {
                 fuelPriceDisplay1.textContent = "Fetching...";
                 fuelPriceDisplay2.textContent = "Fetching...";
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
-                }
-                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
                 const data = await response.json();
                 const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (!text) {
-                    throw new Error("Received an empty response from the API.");
-                }
-                
+                if (!text) throw new Error("Received an empty response from the API.");
                 const prices = JSON.parse(text);
-                
                 if (prices.petrol_price && prices.diesel_price) {
                     fuelPrices.petrol = prices.petrol_price;
                     fuelPrices.diesel = prices.diesel_price;
                     updateDisplayedFuelPrice(1);
-                    if (addVehicle2Checkbox.checked) {
-                        updateDisplayedFuelPrice(2);
-                    }
+                    if (addVehicle2Checkbox.checked) updateDisplayedFuelPrice(2);
                 } else {
                     throw new Error("Could not parse fuel prices from the API response.");
                 }
@@ -566,158 +854,82 @@
             }
         }
 
-        /**
-         * Updates the displayed fuel price for a specific vehicle.
-         * @param {number} vehicleId - The ID of the vehicle (1 or 2).
-         */
         function updateDisplayedFuelPrice(vehicleId) {
             const fuelTypeDropdown = document.getElementById(`fuel-type${vehicleId}`);
             const fuelPriceDisplay = document.getElementById(`current-fuel-price-display${vehicleId}`);
             const selectedFuelType = fuelTypeDropdown.value;
             const price = fuelPrices[selectedFuelType];
-            if (price !== null) {
-                fuelPriceDisplay.textContent = `Current Price in Thiruvananthapuram: ₹${price.toFixed(2)} per liter`;
-            } else {
-                fuelPriceDisplay.textContent = "Price not available.";
-            }
+            fuelPriceDisplay.textContent = price !== null ? `Current Price in Thiruvananthapuram: ₹${price.toFixed(2)} per liter` : "Price not available.";
         }
         
-        /**
-         * Main function to calculate the trip details by calling the Gemini API.
-         */
         async function calculateTrip() {
             clearResults();
-
             if (!GEMINI_API_KEY) {
                 showError("Please add your Gemini API key to the script.");
                 return;
             }
-            
             if (fuelPrices.petrol === null || fuelPrices.diesel === null) {
                 showError("Please wait for fuel prices to be fetched before calculating.");
                 return;
             }
-
             loader.style.display = 'block';
-
             const origin = originInput.value;
             const destination = destinationInput.value;
-            const stops = Array.from(document.querySelectorAll('.stop-input'))
-                                     .map(input => input.value)
-                                     .filter(val => val);
-
+            const stops = Array.from(document.querySelectorAll('.stop-input')).map(input => input.value).filter(val => val);
             if (!origin || !destination) {
                 showError("Please enter an origin and a destination.");
                 return;
             }
 
-            // Append ", Kerala, India" to all location inputs for geographic accuracy.
+            const ipAddress = await getUserIP();
+            window.saveSearchToDb(origin, destination, stops, ipAddress);
+
             const originFull = `${origin}, Kerala, India`;
             const destinationFull = `${destination}, Kerala, India`;
             const stopsFull = stops.map(stop => `${stop}, Kerala, India`);
-
             let prompt = `Calculate the route for a car trip from "${originFull}" to "${destinationFull}"`;
             if (stopsFull.length > 0) {
-                const stopsString = stopsFull.join('" via "');
-                prompt = `Calculate the route for a car trip from "${originFull}" via "${stopsString}" to "${destinationFull}"`;
+                prompt = `Calculate the route for a car trip from "${originFull}" via "${stopsFull.join('" via "')}" to "${destinationFull}"`;
             }
             prompt += `. The trip must be entirely within India. Provide the total distance in kilometers, total duration in minutes, the current weather at the origin, and the current weather at the destination. For weather, include a short description and temperature in Celsius.`;
-
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-            
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "distance_km": { "type": "NUMBER" },
-                            "duration_minutes": { "type": "NUMBER" },
-                            "origin_weather": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "description": { "type": "STRING" },
-                                    "temperature_celsius": { "type": "NUMBER" }
-                                }
-                            },
-                            "destination_weather": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "description": { "type": "STRING" },
-                                    "temperature_celsius": { "type": "NUMBER" }
-                                }
-                            }
-                        },
-                        required: ["distance_km", "duration_minutes", "origin_weather", "destination_weather"]
-                    }
+                    responseSchema: { type: "OBJECT", properties: { "distance_km": { "type": "NUMBER" }, "duration_minutes": { "type": "NUMBER" }, "origin_weather": { "type": "OBJECT", "properties": { "description": { "type": "STRING" }, "temperature_celsius": { "type": "NUMBER" } } }, "destination_weather": { "type": "OBJECT", "properties": { "description": { "type": "STRING" }, "temperature_celsius": { "type": "NUMBER" } } } }, required: ["distance_km", "duration_minutes", "origin_weather", "destination_weather"] }
                 }
             };
-
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
                 }
-
                 const data = await response.json();
                 const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (!text) {
-                    throw new Error("Received an empty response from the API.");
-                }
-
+                if (!text) throw new Error("Received an empty response from the API.");
                 const result = JSON.parse(text);
-                const distanceInKm = result.distance_km;
-                const durationInSeconds = result.duration_minutes * 60;
-                const originWeather = result.origin_weather;
-                const destinationWeather = result.destination_weather;
-
-                if (distanceInKm === null || typeof distanceInKm === 'undefined' || durationInSeconds === null || typeof durationInSeconds === 'undefined') {
-                    throw new Error("Could not get distance or duration from the API's JSON response.");
-                }
-
-                if (!originWeather || !destinationWeather) {
-                    throw new Error("Could not get weather information from the API response.");
-                }
-
-                displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather);
-
+                const { distance_km, duration_minutes, origin_weather, destination_weather } = result;
+                if (distance_km == null || duration_minutes == null) throw new Error("Could not get distance or duration from the API.");
+                if (!origin_weather || !destination_weather) throw new Error("Could not get weather information.");
+                displayResults(distance_km, duration_minutes * 60, origin_weather, destination_weather);
             } catch (error) {
                 console.error('Gemini API error:', error);
-                showError(error.message || "An unexpected error occurred while calculating the trip.");
+                showError(error.message || "An unexpected error occurred.");
             } finally {
                 loader.style.display = 'none';
             }
         }
 
-        /**
-         * Displays the calculated results in the sidebar.
-         * @param {number} distanceInKm - Total distance of the trip.
-         * @param {number} durationInSeconds - Total duration of the trip.
-         * @param {object} originWeather - Weather data for the origin.
-         * @param {object} destinationWeather - Weather data for the destination.
-         */
         function displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather) {
-            const roundTripCheckbox = document.getElementById('round-trip');
-            const isRoundTrip = roundTripCheckbox.checked;
-
-            // Display weather and general trip details
+            const isRoundTrip = document.getElementById('round-trip').checked;
             const originEmoji = getWeatherEmoji(originWeather.description);
             document.getElementById('origin-weather').innerHTML = `Origin Weather: ${originEmoji} ${originWeather.description}, ${originWeather.temperature_celsius.toFixed(1)}°C`;
-            
             const destEmoji = getWeatherEmoji(destinationWeather.description);
             document.getElementById('destination-weather').innerHTML = `Destination Weather: ${destEmoji} ${destinationWeather.description}, ${destinationWeather.temperature_celsius.toFixed(1)}°C`;
-
             document.getElementById('total-distance').textContent = `One-Way Distance: ${distanceInKm.toFixed(2)} km`;
             document.getElementById('total-duration').textContent = `Estimated One-Way Duration: ${formatDuration(durationInSeconds)}`;
-
             const startTimeValue = startTimeInput.value;
             const endTimeValue = endTimeInput.value;
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -730,11 +942,7 @@
                 const requiredStartDateTime = new Date(endDateTime.getTime() - durationInSeconds * 1000);
                 document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
             }
-
-            // Display results for Vehicle 1
             displayVehicleResults(1, distanceInKm, isRoundTrip);
-            
-            // Display results for Vehicle 2 if the checkbox is checked and mileage is provided
             if (addVehicle2Checkbox.checked) {
                 const mileage2 = parseFloat(mileageInput2.value);
                 if (!isNaN(mileage2) && mileage2 > 0) {
@@ -748,72 +956,43 @@
             }
         }
 
-        /**
-         * Calculates and displays the results for a single vehicle.
-         * @param {number} vehicleId - The ID of the vehicle (1 or 2).
-         * @param {number} distanceInKm - The total distance of the trip.
-         * @param {boolean} isRoundTrip - Whether the trip is a round trip.
-         */
         function displayVehicleResults(vehicleId, distanceInKm, isRoundTrip) {
-            const mileageInput = document.getElementById(`mileage${vehicleId}`);
-            const fuelTypeDropdown = document.getElementById(`fuel-type${vehicleId}`);
-            const fuelPrice = fuelPrices[fuelTypeDropdown.value];
-            const mileage = parseFloat(mileageInput.value);
-
+            const mileage = parseFloat(document.getElementById(`mileage${vehicleId}`).value);
+            const fuelType = document.getElementById(`fuel-type${vehicleId}`).value;
+            const fuelPrice = fuelPrices[fuelType];
             let oneWayCost = 0;
             if (mileage > 0 && fuelPrice > 0) {
-                const oneWayFuelNeeded = distanceInKm / mileage;
-                oneWayCost = oneWayFuelNeeded * fuelPrice;
+                oneWayCost = (distanceInKm / mileage) * fuelPrice;
             }
-
             const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
             const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
             const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
-
             let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
-
             document.getElementById(`fuel-cost${vehicleId}`).textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
-            document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'none';
-            document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'none';
-
+            const roundTripDistElem = document.getElementById(`round-trip-distance${vehicleId}`);
+            const roundTripFuelElem = document.getElementById(`round-trip-fuel-cost${vehicleId}`);
+            roundTripDistElem.style.display = 'none';
+            roundTripFuelElem.style.display = 'none';
             if (isRoundTrip) {
-                const roundTripDistance = distanceInKm * 2;
                 const roundTripFuelCost = oneWayCost * 2;
                 totalCost = roundTripFuelCost + hotelCost + (foodCost * 2) + (miscCost * 2);
-
-                document.getElementById(`round-trip-distance${vehicleId}`).textContent = `Round Trip Distance: ${roundTripDistance.toFixed(2)} km`;
-                document.getElementById(`round-trip-fuel-cost${vehicleId}`).textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
-                document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'block';
-                document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'block';
+                roundTripDistElem.textContent = `Round Trip Distance: ${(distanceInKm * 2).toFixed(2)} km`;
+                roundTripFuelElem.textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
+                roundTripDistElem.style.display = 'block';
+                roundTripFuelElem.style.display = 'block';
             }
-            
             document.getElementById(`total-trip-cost${vehicleId}`).textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
         }
 
-        /**
-         * Exports the content of the results section as a PDF.
-         */
         function exportResultsToPdf() {
             const element = document.getElementById('results');
             if (element.children.length > 2) {
-                const opt = {
-                    margin: 1,
-                    filename: 'trip_plan.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-                };
-                html2pdf().from(element).set(opt).save();
+                html2pdf().from(element).set({ margin: 1, filename: 'trip_plan.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).save();
             } else {
                 showError("Please calculate a trip before exporting to PDF.");
             }
         }
 
-        /**
-         * Selects a weather emoji based on the weather description.
-         * @param {string} description - The weather description text.
-         * @returns {string} An emoji character.
-         */
         function getWeatherEmoji(description) {
             const desc = description.toLowerCase();
             if (desc.includes('cloud') || desc.includes('overcast')) return '☁️';
@@ -822,42 +1001,28 @@
             if (desc.includes('storm') || desc.includes('thunder')) return '⛈️';
             if (desc.includes('snow')) return '❄️';
             if (desc.includes('mist') || desc.includes('haze') || desc.includes('fog')) return '🌫️';
-            return '🌍'; // default
+            return '🌍';
         }
 
-        /**
-         * Formats a duration in seconds into a human-readable string (e.g., "1 hour 30 minutes").
-         * @param {number} seconds - The duration in seconds.
-         * @returns {string} The formatted duration string.
-         */
         function formatDuration(seconds) {
             if (seconds === 0) return 'N/A';
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            let result = '';
-            if (hours > 0) result += `${hours} hour${hours > 1 ? 's' : ''} `;
-            if (minutes > 0) result += `${minutes} minute${minutes > 1 ? 's' : ''}`;
-            if (result === '') result = 'Less than a minute';
-            return result.trim();
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            let res = '';
+            if (h > 0) res += `${h} hour${h > 1 ? 's' : ''} `;
+            if (m > 0) res += `${m} minute${m > 1 ? 's' : ''}`;
+            return res.trim() || 'Less than a minute';
         }
 
-        /**
-         * Clears all previous results and error messages from the UI.
-         */
         function clearResults() {
             resultsDiv.querySelectorAll('p').forEach(p => p.textContent = '');
             errorMessage.textContent = '';
         }
 
-        /**
-         * Displays an error message in the UI.
-         * @param {string} message - The error message to display.
-         */
         function showError(message) {
             loader.style.display = 'none';
             errorMessage.textContent = message;
         }
-
     </script>
 </body>
 </html>
