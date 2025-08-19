@@ -202,27 +202,8 @@
             font-weight: 600;
             margin-bottom: 15px;
         }
-        /* Styling for the new location button and its container */
-        .input-with-button {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .input-with-button input {
-            flex-grow: 1;
-        }
-        .location-btn {
-            width: auto !important;
-            padding: 8px 12px !important;
-            font-size: 16px !important;
-            margin-bottom: 0 !important;
-            background: var(--button-secondary) !important;
-        }
-        .location-btn:hover {
-            background: var(--button-secondary-hover) !important;
-        }
         /* Toggle Switch Styling */
-       .switch-label {
+        .switch-label {
             position: relative;
             display: inline-block;
             width: 50px;
@@ -232,7 +213,7 @@
             cursor: pointer;
             transition: background-color 0.4s;
         }
-       .switch-label::after {
+        .switch-label::after {
             content: '';
             position: absolute;
             width: 24px;
@@ -243,13 +224,13 @@
             left: 2px;
             transition: transform 0.4s;
         }
-       .theme-checkbox:checked + .switch-label {
+        .theme-checkbox:checked + .switch-label {
             background-color: var(--toggle-checked-bg);
         }
-       .theme-checkbox:checked + .switch-label::after {
+        .theme-checkbox:checked + .switch-label::after {
             transform: translateX(22px);
         }
-       .theme-checkbox {
+        .theme-checkbox {
             display: none;
         }
 
@@ -267,10 +248,7 @@
         
         <div class="input-group">
             <label for="origin">Origin</label>
-            <div class="input-with-button">
-                <input type="text" id="origin" placeholder="e.g., Ernakulam">
-                <button id="get-location-btn" type="button" class="location-btn" title="Use my current location">📍</button>
-            </div>
+            <input type="text" id="origin" placeholder="e.g., Ernakulam">
         </div>
 
         <div id="stops-container">
@@ -295,6 +273,7 @@
         
         <hr>
         
+        <!-- Vehicle 1 Profile -->
         <div class="vehicle-profile">
             <h3>Vehicle 1 Details</h3>
             <div class="input-group">
@@ -317,6 +296,7 @@
             <input type="checkbox" id="add-vehicle2-checkbox">
         </div>
 
+        <!-- Vehicle 2 Profile -->
         <div id="vehicle2-profile-container" class="vehicle-profile" style="display: none;">
             <h3>Vehicle 2 Details</h3>
             <div class="input-group">
@@ -372,6 +352,7 @@
             <p id="total-duration"></p>
             <p id="time-calculation-result"></p>
             
+            <!-- Results for Vehicle 1 -->
             <div id="vehicle1-results" class="vehicle-results-section">
                 <h3>Vehicle 1 Cost Breakdown</h3>
                 <p id="fuel-cost1"></p>
@@ -380,6 +361,7 @@
                 <p id="total-trip-cost1" class="total-cost"></p>
             </div>
 
+            <!-- Results for Vehicle 2 -->
             <div id="vehicle2-results" class="vehicle-results-section" style="display: none;">
                 <h3>Vehicle 2 Cost Breakdown</h3>
                 <p id="fuel-cost2"></p>
@@ -395,8 +377,9 @@
 
     <script>
         // --- API KEY & MODEL ---
-        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps";
+        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+
         // Initialize Leaflet map
         const map = L.map('map').setView([8.5241, 76.9366], 12); // Default center (Thiruvananthapuram)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -410,7 +393,6 @@
         const addStopBtn = document.getElementById('add-stop-btn');
         const calculateBtn = document.getElementById('calculate-trip');
         const exportPdfBtn = document.getElementById('export-pdf-btn');
-        const getLocationBtn = document.getElementById('get-location-btn'); // NEW: Location button
         const resultsDiv = document.getElementById('results');
         const loader = document.getElementById('loader');
         const errorMessage = document.getElementById('error-message');
@@ -479,56 +461,6 @@
         exportPdfBtn.addEventListener('click', exportResultsToPdf);
         themeSwitch.addEventListener('change', toggleTheme);
         addVehicle2Checkbox.addEventListener('change', toggleVehicle2Display);
-        getLocationBtn.addEventListener('click', getUserLocation); // NEW: Event listener for location button
-
-        // --- NEW: Location Functions ---
-
-        /**
-         * Initiates the process of getting the user's current location.
-         */
-        function getUserLocation() {
-            if (navigator.geolocation) {
-                originInput.placeholder = 'Fetching your location...';
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
-                        reverseGeocode(lat, lon);
-                    },
-                    () => {
-                        showError("Unable to retrieve location. Please grant permission or enter it manually.");
-                        originInput.placeholder = 'e.g., Ernakulam';
-                    }
-                );
-            } else {
-                showError("Geolocation is not supported by your browser.");
-            }
-        }
-
-        /**
-         * Converts latitude and longitude into a human-readable address using Nominatim API.
-         * @param {number} lat The latitude.
-         * @param {number} lon The longitude.
-         */
-        async function reverseGeocode(lat, lon) {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('Reverse geocoding request failed.');
-                const data = await response.json();
-                
-                const address = data.address;
-                // Construct a readable address. Prioritize city, then town, then village.
-                const locationName = address.city || address.town || address.village || address.suburb || 'Current Location';
-                
-                originInput.value = locationName;
-
-            } catch (error) {
-                console.error("Reverse geocoding error:", error);
-                showError("Could not find address for your location. Please enter it manually.");
-                originInput.placeholder = 'e.g., Ernakulam';
-            }
-        }
 
         // --- Theme Functions ---
         function applySavedTheme() {
@@ -570,7 +502,7 @@
          * The prices are stored in a global object and the display is updated.
          */
         async function fetchAndDisplayFuelPrices() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps") {
+            if (!GEMINI_API_KEY) {
                 showError("Please add your Gemini API key to the script.");
                 return;
             }
@@ -582,6 +514,14 @@
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "petrol_price": { "type": "NUMBER" },
+                            "diesel_price": { "type": "NUMBER" }
+                        },
+                        required: ["petrol_price", "diesel_price"]
+                    }
                 }
             };
             
@@ -606,9 +546,7 @@
                     throw new Error("Received an empty response from the API.");
                 }
                 
-                // Clean the response text by removing markdown backticks and 'json' label
-                const cleanedText = text.replace(/```json\n?|```/g, '').trim();
-                const prices = JSON.parse(cleanedText);
+                const prices = JSON.parse(text);
                 
                 if (prices.petrol_price && prices.diesel_price) {
                     fuelPrices.petrol = prices.petrol_price;
@@ -650,7 +588,7 @@
         async function calculateTrip() {
             clearResults();
 
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
+            if (!GEMINI_API_KEY) {
                 showError("Please add your Gemini API key to the script.");
                 return;
             }
@@ -691,6 +629,28 @@
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "distance_km": { "type": "NUMBER" },
+                            "duration_minutes": { "type": "NUMBER" },
+                            "origin_weather": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "description": { "type": "STRING" },
+                                    "temperature_celsius": { "type": "NUMBER" }
+                                }
+                            },
+                            "destination_weather": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "description": { "type": "STRING" },
+                                    "temperature_celsius": { "type": "NUMBER" }
+                                }
+                            }
+                        },
+                        required: ["distance_km", "duration_minutes", "origin_weather", "destination_weather"]
+                    }
                 }
             };
 
@@ -712,10 +672,8 @@
                 if (!text) {
                     throw new Error("Received an empty response from the API.");
                 }
-                
-                const cleanedText = text.replace(/```json\n?|```/g, '').trim();
-                const result = JSON.parse(cleanedText);
 
+                const result = JSON.parse(text);
                 const distanceInKm = result.distance_km;
                 const durationInSeconds = result.duration_minutes * 60;
                 const originWeather = result.origin_weather;
@@ -815,98 +773,89 @@
             let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
 
             document.getElementById(`fuel-cost${vehicleId}`).textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
-            
+            document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'none';
+            document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'none';
+
             if (isRoundTrip) {
                 const roundTripDistance = distanceInKm * 2;
                 const roundTripFuelCost = oneWayCost * 2;
-                totalCost = roundTripFuelCost + hotelCost + foodCost + miscCost;
+                totalCost = roundTripFuelCost + hotelCost + (foodCost * 2) + (miscCost * 2);
 
                 document.getElementById(`round-trip-distance${vehicleId}`).textContent = `Round Trip Distance: ${roundTripDistance.toFixed(2)} km`;
                 document.getElementById(`round-trip-fuel-cost${vehicleId}`).textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
-                
                 document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'block';
                 document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'block';
-            } else {
-                document.getElementById(`round-trip-distance${vehicleId}`).style.display = 'none';
-                document.getElementById(`round-trip-fuel-cost${vehicleId}`).style.display = 'none';
             }
-
-            document.getElementById(`total-trip-cost${vehicleId}`).textContent = `Total Estimated Cost: ₹${totalCost.toFixed(2)}`;
+            
+            document.getElementById(`total-trip-cost${vehicleId}`).textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
         }
 
         /**
-         * Clears all previous results and error messages from the display.
+         * Exports the content of the results section as a PDF.
          */
-        function clearResults() {
-            const resultElements = [
-                'origin-weather', 'destination-weather', 'total-distance', 'total-duration', 
-                'time-calculation-result', 'fuel-cost1', 'round-trip-distance1', 'round-trip-fuel-cost1', 
-                'total-trip-cost1', 'fuel-cost2', 'round-trip-distance2', 'round-trip-fuel-cost2', 
-                'total-trip-cost2'
-            ];
-            resultElements.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = '';
-            });
-            errorMessage.style.display = 'none';
+        function exportResultsToPdf() {
+            const element = document.getElementById('results');
+            if (element.children.length > 2) {
+                const opt = {
+                    margin: 1,
+                    filename: 'trip_plan.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                html2pdf().from(element).set(opt).save();
+            } else {
+                showError("Please calculate a trip before exporting to PDF.");
+            }
         }
 
         /**
-         * Formats duration in seconds into a "X hours Y minutes" string.
-         * @param {number} durationInSeconds - The duration to format.
+         * Selects a weather emoji based on the weather description.
+         * @param {string} description - The weather description text.
+         * @returns {string} An emoji character.
+         */
+        function getWeatherEmoji(description) {
+            const desc = description.toLowerCase();
+            if (desc.includes('cloud') || desc.includes('overcast')) return '☁️';
+            if (desc.includes('sun') || desc.includes('clear')) return '☀️';
+            if (desc.includes('rain') || desc.includes('shower') || desc.includes('drizzle')) return '🌧️';
+            if (desc.includes('storm') || desc.includes('thunder')) return '⛈️';
+            if (desc.includes('snow')) return '❄️';
+            if (desc.includes('mist') || desc.includes('haze') || desc.includes('fog')) return '🌫️';
+            return '🌍'; // default
+        }
+
+        /**
+         * Formats a duration in seconds into a human-readable string (e.g., "1 hour 30 minutes").
+         * @param {number} seconds - The duration in seconds.
          * @returns {string} The formatted duration string.
          */
-        function formatDuration(durationInSeconds) {
-            const hours = Math.floor(durationInSeconds / 3600);
-            const minutes = Math.floor((durationInSeconds % 3600) / 60);
+        function formatDuration(seconds) {
+            if (seconds === 0) return 'N/A';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
             let result = '';
             if (hours > 0) result += `${hours} hour${hours > 1 ? 's' : ''} `;
             if (minutes > 0) result += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+            if (result === '') result = 'Less than a minute';
             return result.trim();
         }
 
         /**
-         * Displays an error message to the user.
-         * @param {string} message - The error message to show.
+         * Clears all previous results and error messages from the UI.
+         */
+        function clearResults() {
+            resultsDiv.querySelectorAll('p').forEach(p => p.textContent = '');
+            errorMessage.textContent = '';
+        }
+
+        /**
+         * Displays an error message in the UI.
+         * @param {string} message - The error message to display.
          */
         function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
             loader.style.display = 'none';
-        }
-
-        /**
-         * Returns an emoji based on the weather description.
-         * @param {string} description - The weather description text.
-         * @returns {string} A weather emoji.
-         */
-        function getWeatherEmoji(description) {
-            description = description.toLowerCase();
-            if (description.includes('sun') || description.includes('clear')) return '☀️';
-            if (description.includes('cloud')) return '☁️';
-            if (description.includes('rain') || description.includes('shower')) return '🌧️';
-            if (description.includes('storm')) return '⛈️';
-            if (description.includes('mist') || description.includes('fog')) return '🌫️';
-            return '🌡️'; // Default
-        }
-
-        /**
-         * Exports the visible results section to a PDF file.
-         */
-        function exportResultsToPdf() {
-            const resultsToExport = document.getElementById('results');
-            if (!resultsToExport.querySelector('#total-distance').textContent) {
-                showError('Please calculate a trip before exporting.');
-                return;
-            }
-            const opt = {
-                margin: 1,
-                filename: 'trip_plan.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-            html2pdf().from(resultsToExport).set(opt).save();
+            errorMessage.textContent = message;
         }
 
     </script>
