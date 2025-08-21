@@ -532,4 +532,500 @@
                 console.log("Document written with ID: ", docRef.id);
                 fetchRecentSearches(); // Refresh the list after saving
             } catch (e) {
-                console.error("Er
+                console.error("Error adding document: ", e);
+            }
+        }
+
+        /**
+         * Fetches the 10 most recent searches for the current user from Firestore.
+         */
+        async function fetchRecentSearches() {
+            if (!currentUserId) return;
+
+            const recentSearchesList = document.getElementById('recent-searches-list');
+            recentSearchesList.innerHTML = '<p>Loading recent searches...</p>';
+
+            try {
+                const q = query(
+                    collection(db, `artifacts/${appId}/public/searches`),
+                    where("userId", "==", currentUserId),
+                    orderBy("timestamp", "desc"),
+                    limit(10)
+                );
+
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) {
+                    recentSearchesList.innerHTML = '<p>No recent searches found.</p>';
+                    return;
+                }
+                
+                recentSearchesList.innerHTML = ''; // Clear the list
+                querySnapshot.forEach((doc) => {
+                    const search = doc.data();
+                    const searchItem = document.createElement('div');
+                    searchItem.className = 'recent-search-item';
+                    
+                    let stopsText = 'No stops';
+                    if (search.stops && search.stops.length > 0) {
+                        stopsText = `Via: ${search.stops.join(', ')}`;
+                    }
+
+                    // Handle display for "current location" lookups which have no destination
+                    const routeText = search.destination 
+                        ? `${search.origin} → ${search.destination}`
+                        : `📍 Current Location: ${search.origin}`;
+
+                    searchItem.innerHTML = `
+                        <p class="route">${routeText}</p>
+                        <p class="stops">${stopsText}</p>
+                    `;
+                    
+                    // Add click listener to populate the form with this search data
+                    searchItem.addEventListener('click', () => {
+                        populateFormFromSearch(search);
+                    });
+
+                    recentSearchesList.appendChild(searchItem);
+                });
+            } catch (error) {
+                console.error("Error fetching recent searches:", error);
+                recentSearchesList.innerHTML = '<p>Could not load recent searches.</p>';
+            }
+        }
+
+        // Make functions globally accessible for inline event handlers
+        window.fetchRecentSearches = fetchRecentSearches;
+        window.saveSearchToDb = saveSearchToDb;
+
+    </script>
+    
+    <script>
+        // --- API KEY & MODEL ---
+        const GEMINI_API_KEY = "AIzaSyAEI4iMpOqIsfbSpY9lYlOKAgixUQXQ6ps"; // Use the key you provided
+        const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+
+        // Initialize Leaflet map
+        const map = L.map('map').setView([8.5241, 76.9366], 12); // Default center (Thiruvananthapuram)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map); 
+
+        // Get DOM elements
+        const originInput = document.getElementById('origin');
+        const useCurrentLocationBtn = document.getElementById('use-current-location-btn');
+        const destinationInput = document.getElementById('destination');
+        const stopsContainer = document.getElementById('stops-container');
+        const addStopBtn = document.getElementById('add-stop-btn');
+        const calculateBtn = document.getElementById('calculate-trip');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const resultsDiv = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('error-message');
+        const startTimeInput = document.getElementById('start-time');
+        const endTimeInput = document.getElementById('end-time');
+        
+        const mileageInput1 = document.getElementById('mileage1');
+        const fuelTypeDropdown1 = document.getElementById('fuel-type1');
+        const fuelPriceDisplay1 = document.getElementById('current-fuel-price-display1');
+        
+        const addVehicle2Checkbox = document.getElementById('add-vehicle2-checkbox');
+        const vehicle2ProfileContainer = document.getElementById('vehicle2-profile-container');
+        const mileageInput2 = document.getElementById('mileage2');
+        const fuelTypeDropdown2 = document.getElementById('fuel-type2');
+        const fuelPriceDisplay2 = document.getElementById('current-fuel-price-display2');
+
+        const themeSwitch = document.getElementById('theme-switch');
+
+        let stopCount = 0;
+        let fuelPrices = { petrol: null, diesel: null };
+
+        // --- Event Listeners ---
+        window.addEventListener('load', () => {
+            fetchAndDisplayFuelPrices();
+            applySavedTheme();
+        });
+
+        useCurrentLocationBtn.addEventListener('click', handleGetCurrentLocation);
+        startTimeInput.addEventListener('input', () => {
+            if (startTimeInput.value) {
+                endTimeInput.value = '';
+                endTimeInput.disabled = true;
+            } else {
+                endTimeInput.disabled = false;
+            }
+        });
+        endTimeInput.addEventListener('input', () => {
+            if (endTimeInput.value) {
+                startTimeInput.value = '';
+                startTimeInput.disabled = true;
+            } else {
+                startTimeInput.disabled = false;
+            }
+        });
+        addStopBtn.addEventListener('click', () => addStopInput());
+        fuelTypeDropdown1.addEventListener('change', () => updateDisplayedFuelPrice(1));
+        fuelTypeDropdown2.addEventListener('change', () => updateDisplayedFuelPrice(2));
+        calculateBtn.addEventListener('click', calculateTrip);
+        exportPdfBtn.addEventListener('click', exportResultsToPdf);
+        themeSwitch.addEventListener('change', toggleTheme);
+        addVehicle2Checkbox.addEventListener('change', toggleVehicle2Display);
+
+        // --- Helper Functions ---
+        /**
+         * Fetches the user's public IP address.
+         * @returns {Promise<string|null>} The IP address or null if an error occurs.
+         */
+        async function getUserIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                if (!response.ok) return null;
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error("Could not fetch IP address:", error);
+                return null;
+            }
+        }
+
+        // --- UI Functions ---
+        function openTab(tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (tabName === 'recent') {
+                window.fetchRecentSearches();
+            }
+        }
+
+        function addStopInput(value = '') {
+            stopCount++;
+            const stopDiv = document.createElement('div');
+            stopDiv.className = 'input-group';
+            stopDiv.innerHTML = `
+                <label for="stop-${stopCount}">Stop ${stopCount}</label>
+                <input type="text" id="stop-${stopCount}" class="stop-input" placeholder="Add an intermediate stop" value="${value}">
+            `;
+            stopsContainer.appendChild(stopDiv);
+        }
+
+        function populateFormFromSearch(searchData) {
+            originInput.value = searchData.origin;
+            destinationInput.value = searchData.destination || ''; // Handle null destination
+            
+            stopsContainer.innerHTML = '';
+            stopCount = 0;
+
+            if (searchData.stops && searchData.stops.length > 0) {
+                searchData.stops.forEach(stopValue => {
+                    addStopInput(stopValue);
+                });
+            }
+            
+            openTab('planner');
+        }
+
+        async function handleGetCurrentLocation() {
+            if (navigator.geolocation) {
+                originInput.value = "";
+                originInput.placeholder = "Fetching your location...";
+                originInput.disabled = true;
+                useCurrentLocationBtn.disabled = true;
+                useCurrentLocationBtn.textContent = "Fetching...";
+
+                const ipAddress = await getUserIP(); // Get IP first
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const { latitude, longitude } = position.coords;
+                        try {
+                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+                            if (!response.ok) throw new Error('Reverse geocoding request failed.');
+                            const data = await response.json();
+                            const city = data.address.city || data.address.town || data.address.village || '';
+                            const state = data.address.state || '';
+                            const address = [city, state].filter(Boolean).join(', ');
+                            const finalAddress = address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                            
+                            originInput.value = finalAddress;
+                            // Save the current location lookup to the database
+                            window.saveSearchToDb(finalAddress, null, [], ipAddress);
+
+                        } catch (error) {
+                            console.error("Error fetching address:", error);
+                            showError("Could not fetch address. Please enter manually.");
+                            originInput.placeholder = "e.g., Ernakulam";
+                        } finally {
+                            originInput.disabled = false;
+                            useCurrentLocationBtn.disabled = false;
+                            useCurrentLocationBtn.innerHTML = "📍 Use My Location";
+                        }
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        let message = "Could not get your location. ";
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED: message += "Please allow location access."; break;
+                            case error.POSITION_UNAVAILABLE: message += "Location information is unavailable."; break;
+                            case error.TIMEOUT: message += "Request timed out."; break;
+                            default: message += "An unknown error occurred."; break;
+                        }
+                        showError(message);
+                        originInput.placeholder = "e.g., Ernakulam";
+                        originInput.disabled = false;
+                        useCurrentLocationBtn.disabled = false;
+                        useCurrentLocationBtn.innerHTML = "📍 Use My Location";
+                    }
+                );
+            } else {
+                showError("Geolocation is not supported by your browser.");
+            }
+        }
+
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeSwitch.checked = true;
+            }
+        }
+
+        function toggleTheme() {
+            if (themeSwitch.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        function toggleVehicle2Display() {
+            if (addVehicle2Checkbox.checked) {
+                vehicle2ProfileContainer.style.display = 'block';
+                document.getElementById('vehicle2-results').style.display = 'block';
+            } else {
+                vehicle2ProfileContainer.style.display = 'none';
+                document.getElementById('vehicle2-results').style.display = 'none';
+                mileageInput2.value = '';
+                fuelTypeDropdown2.value = 'petrol';
+            }
+        }
+
+        async function fetchAndDisplayFuelPrices() {
+            if (!GEMINI_API_KEY) {
+                showError("Please add your Gemini API key to the script.");
+                return;
+            }
+            const prompt = `Provide the current fuel prices for petrol and diesel in Thiruvananthapuram, Kerala, India today. The response should be a JSON object with the prices in Indian Rupees (₹) per liter.`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: { type: "OBJECT", properties: { "petrol_price": { "type": "NUMBER" }, "diesel_price": { "type": "NUMBER" } }, required: ["petrol_price", "diesel_price"] }
+                }
+            };
+            try {
+                fuelPriceDisplay1.textContent = "Fetching...";
+                fuelPriceDisplay2.textContent = "Fetching...";
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("Received an empty response from the API.");
+                const prices = JSON.parse(text);
+                if (prices.petrol_price && prices.diesel_price) {
+                    fuelPrices.petrol = prices.petrol_price;
+                    fuelPrices.diesel = prices.diesel_price;
+                    updateDisplayedFuelPrice(1);
+                    if (addVehicle2Checkbox.checked) updateDisplayedFuelPrice(2);
+                } else {
+                    throw new Error("Could not parse fuel prices from the API response.");
+                }
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                const errorMsg = "Error fetching prices. Please try again later.";
+                fuelPriceDisplay1.textContent = errorMsg;
+                fuelPriceDisplay2.textContent = errorMsg;
+            }
+        }
+
+        function updateDisplayedFuelPrice(vehicleId) {
+            const fuelTypeDropdown = document.getElementById(`fuel-type${vehicleId}`);
+            const fuelPriceDisplay = document.getElementById(`current-fuel-price-display${vehicleId}`);
+            const selectedFuelType = fuelTypeDropdown.value;
+            const price = fuelPrices[selectedFuelType];
+            fuelPriceDisplay.textContent = price !== null ? `Current Price in Thiruvananthapuram: ₹${price.toFixed(2)} per liter` : "Price not available.";
+        }
+        
+        async function calculateTrip() {
+            clearResults();
+            if (!GEMINI_API_KEY) {
+                showError("Please add your Gemini API key to the script.");
+                return;
+            }
+            if (fuelPrices.petrol === null || fuelPrices.diesel === null) {
+                showError("Please wait for fuel prices to be fetched before calculating.");
+                return;
+            }
+            loader.style.display = 'block';
+            const origin = originInput.value;
+            const destination = destinationInput.value;
+            const stops = Array.from(document.querySelectorAll('.stop-input')).map(input => input.value).filter(val => val);
+            if (!origin || !destination) {
+                showError("Please enter an origin and a destination.");
+                loader.style.display = 'none'; // Hide loader on validation failure
+                return;
+            }
+
+            const ipAddress = await getUserIP();
+            window.saveSearchToDb(origin, destination, stops, ipAddress);
+
+            const originFull = `${origin}, Kerala, India`;
+            const destinationFull = `${destination}, Kerala, India`;
+            const stopsFull = stops.map(stop => `${stop}, Kerala, India`);
+            let prompt = `Calculate the route for a car trip from "${originFull}" to "${destinationFull}"`;
+            if (stopsFull.length > 0) {
+                prompt = `Calculate the route for a car trip from "${originFull}" via "${stopsFull.join('" via "')}" to "${destinationFull}"`;
+            }
+            prompt += `. The trip must be entirely within India. Provide the total distance in kilometers, total duration in minutes, the current weather at the origin, and the current weather at the destination. For weather, include a short description and temperature in Celsius.`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: { type: "OBJECT", properties: { "distance_km": { "type": "NUMBER" }, "duration_minutes": { "type": "NUMBER" }, "origin_weather": { "type": "OBJECT", "properties": { "description": { "type": "STRING" }, "temperature_celsius": { "type": "NUMBER" } } }, "destination_weather": { "type": "OBJECT", "properties": { "description": { "type": "STRING" }, "temperature_celsius": { "type": "NUMBER" } } } }, required: ["distance_km", "duration_minutes", "origin_weather", "destination_weather"] }
+                }
+            };
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
+                }
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("Received an empty response from the API.");
+                const result = JSON.parse(text);
+                const { distance_km, duration_minutes, origin_weather, destination_weather } = result;
+                if (distance_km == null || duration_minutes == null) throw new Error("Could not get distance or duration from the API.");
+                if (!origin_weather || !destination_weather) throw new Error("Could not get weather information.");
+                displayResults(distance_km, duration_minutes * 60, origin_weather, destination_weather);
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                showError(error.message || "An unexpected error occurred.");
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function displayResults(distanceInKm, durationInSeconds, originWeather, destinationWeather) {
+            const isRoundTrip = document.getElementById('round-trip').checked;
+            const originEmoji = getWeatherEmoji(originWeather.description);
+            document.getElementById('origin-weather').innerHTML = `Origin Weather: ${originEmoji} ${originWeather.description}, ${originWeather.temperature_celsius.toFixed(1)}°C`;
+            const destEmoji = getWeatherEmoji(destinationWeather.description);
+            document.getElementById('destination-weather').innerHTML = `Destination Weather: ${destEmoji} ${destinationWeather.description}, ${destinationWeather.temperature_celsius.toFixed(1)}°C`;
+            document.getElementById('total-distance').textContent = `One-Way Distance: ${distanceInKm.toFixed(2)} km`;
+            document.getElementById('total-duration').textContent = `Estimated One-Way Duration: ${formatDuration(durationInSeconds)}`;
+            const startTimeValue = startTimeInput.value;
+            const endTimeValue = endTimeInput.value;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            if (startTimeValue) {
+                const startDateTime = new Date(`${todayStr}T${startTimeValue}`);
+                const arrivalDateTime = new Date(startDateTime.getTime() + durationInSeconds * 1000);
+                document.getElementById('time-calculation-result').textContent = `Estimated Arrival: ${arrivalDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+            } else if (endTimeValue) {
+                const endDateTime = new Date(`${todayStr}T${endTimeValue}`);
+                const requiredStartDateTime = new Date(endDateTime.getTime() - durationInSeconds * 1000);
+                document.getElementById('time-calculation-result').textContent = `Required Start: ${requiredStartDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+            }
+            displayVehicleResults(1, distanceInKm, isRoundTrip);
+            if (addVehicle2Checkbox.checked) {
+                const mileage2 = parseFloat(mileageInput2.value);
+                if (!isNaN(mileage2) && mileage2 > 0) {
+                    document.getElementById('vehicle2-results').style.display = 'block';
+                    displayVehicleResults(2, distanceInKm, isRoundTrip);
+                } else {
+                    showError("Please enter a valid mileage for the second vehicle.");
+                }
+            } else {
+                document.getElementById('vehicle2-results').style.display = 'none';
+            }
+        }
+
+        function displayVehicleResults(vehicleId, distanceInKm, isRoundTrip) {
+            const mileage = parseFloat(document.getElementById(`mileage${vehicleId}`).value);
+            const fuelType = document.getElementById(`fuel-type${vehicleId}`).value;
+            const fuelPrice = fuelPrices[fuelType];
+            let oneWayCost = 0;
+            if (mileage > 0 && fuelPrice > 0) {
+                oneWayCost = (distanceInKm / mileage) * fuelPrice;
+            }
+            const hotelCost = parseFloat(document.getElementById('hotel-cost').value) || 0;
+            const foodCost = parseFloat(document.getElementById('food-cost').value) || 0;
+            const miscCost = parseFloat(document.getElementById('misc-cost').value) || 0;
+            let totalCost = oneWayCost + hotelCost + foodCost + miscCost;
+            document.getElementById(`fuel-cost${vehicleId}`).textContent = `Estimated One-Way Fuel Cost: ₹${oneWayCost.toFixed(2)}`;
+            const roundTripDistElem = document.getElementById(`round-trip-distance${vehicleId}`);
+            const roundTripFuelElem = document.getElementById(`round-trip-fuel-cost${vehicleId}`);
+            roundTripDistElem.style.display = 'none';
+            roundTripFuelElem.style.display = 'none';
+            if (isRoundTrip) {
+                const roundTripFuelCost = oneWayCost * 2;
+                totalCost = roundTripFuelCost + hotelCost + (foodCost * 2) + (miscCost * 2);
+                roundTripDistElem.textContent = `Round Trip Distance: ${(distanceInKm * 2).toFixed(2)} km`;
+                roundTripFuelElem.textContent = `Round Trip Fuel Cost: ₹${roundTripFuelCost.toFixed(2)}`;
+                roundTripDistElem.style.display = 'block';
+                roundTripFuelElem.style.display = 'block';
+            }
+            document.getElementById(`total-trip-cost${vehicleId}`).textContent = `Total Estimated Trip Cost: ₹${totalCost.toFixed(2)}`;
+        }
+
+        function exportResultsToPdf() {
+            const element = document.getElementById('results');
+            if (element.children.length > 2) {
+                html2pdf().from(element).set({ margin: 1, filename: 'trip_plan.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).save();
+            } else {
+                showError("Please calculate a trip before exporting to PDF.");
+            }
+        }
+
+        function getWeatherEmoji(description) {
+            const desc = description.toLowerCase();
+            if (desc.includes('cloud') || desc.includes('overcast')) return '☁️';
+            if (desc.includes('sun') || desc.includes('clear')) return '☀️';
+            if (desc.includes('rain') || desc.includes('shower') || desc.includes('drizzle')) return '🌧️';
+            if (desc.includes('storm') || desc.includes('thunder')) return '⛈️';
+            if (desc.includes('snow')) return '❄️';
+            if (desc.includes('mist') || desc.includes('haze') || desc.includes('fog')) return '🌫️';
+            return '🌍';
+        }
+
+        function formatDuration(seconds) {
+            if (seconds === 0) return 'N/A';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            let res = '';
+            if (h > 0) res += `${h} hour${h > 1 ? 's' : ''} `;
+            if (m > 0) res += `${m} minute${m > 1 ? 's' : ''}`;
+            return res.trim() || 'Less than a minute';
+        }
+
+        function clearResults() {
+            resultsDiv.querySelectorAll('p').forEach(p => p.textContent = '');
+            errorMessage.textContent = '';
+        }
+
+        function showError(message) {
+            loader.style.display = 'none';
+            errorMessage.textContent = message;
+        }
+    </script>
+</body>
+</html>
